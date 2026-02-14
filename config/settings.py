@@ -29,7 +29,7 @@ ALLOWED_HOSTS = ["*"]
 
 CSRF_TRUSTED_ORIGINS = [
 
-    'https://edumerc.up.railway.app/',
+    'https://edumerc.up.railway.app',
     'http://localhost:5174',
 
       ]
