@@ -34,10 +34,10 @@ class AskAIQuerySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ClubSerializer(serializers.ModelSerializer):
-    topics = TopicSerializer(many=True, read_only=True)
-    role_models = RoleModelSerializer(many=True, read_only=True)
-    practical_apps = PracticalApplicationSerializer(many=True, read_only=True)
+    # topics = TopicSerializer(many=True, read_only=True)
+    # role_models = RoleModelSerializer(many=True, read_only=True)
+    # practical_apps = PracticalApplicationSerializer(many=True, read_only=True)
     
     class Meta:
         model = Club
-        fields = '__all__'
+        fields = ["name","category","id","cover_image"]
