@@ -27,6 +27,13 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5174',
+    'https://edumerc.up.railway.app',
+
+]
+
+
 
 # Application definition
 
