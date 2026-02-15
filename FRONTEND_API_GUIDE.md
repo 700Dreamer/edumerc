@@ -137,6 +137,23 @@ Returns full details including images, administrators, and events.
 
 ---
 
+## 📚 EduQuest (Materials & Exams)
+**Prefix**: `/quest/`
+
+### List Materials
+`GET /`
+**Parameters**: `material_type` (EXAM, PAST_PAPER), `session` (BOT, MID, EOT)
+
+### Order Material
+`POST /orders/` (Requires Auth)
+```json
+{
+  "material": 1
+}
+```
+
+---
+
 ## 💡 Frontend Integration Pro-Tips
 - **Headers**: Always set `Authorization: Bearer <access_token>` after login.
 - **Refresh Flow**: If a request returns `401`, call `POST /auth/refresh/` with your refresh token to get a new access token.

@@ -1,10 +1,11 @@
 import random
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from edupedia.models import School, SchoolEvent, SchoolReview
+from edupedia.models import School, SchoolEvent, SchoolReview, SchoolGalleryImage, SchoolAdministrator
 from educlubs.models import Club, ClubCategory, Topic, Lesson, RoleModel
 from edushop.models import Category, Product, Bundle
 from edufundme.models import Scholarship, Campaign
+from eduquest.models import Material, MaterialOrder
 from django.utils.text import slugify
 from datetime import date, timedelta
 
@@ -40,19 +41,118 @@ class Command(BaseCommand):
 
         # 2. Schools
         self.stdout.write('Creating schools...')
-        school_names = ['St. Mary Academy', 'Green Hill Primary', 'Nakawa Technical Institute']
+        detailed_schools = [
+            {
+                'name': 'Heritage International School',
+                'motto': 'Excellence in Every Child',
+                'location': 'Lubowa, Entebbe Road',
+                'description': 'A premium international school offering the British curriculum with state-of-the-art facilities and a global outlook.',
+                'email': 'admissions@heritage.ac.ug',
+                'website': 'https://heritage.ac.ug'
+            },
+            {
+                'name': 'St. Mary\'s High School',
+                'motto': 'Virtue and Labor',
+                'location': 'Kitende, Kampala',
+                'description': 'One of the leading traditional schools in Uganda, known for academic excellence and discipline.',
+                'email': 'info@stmarys.edu',
+                'website': 'https://stmaryskitende.com'
+            },
+            {
+                'name': 'Hillside Primary School',
+                'motto': 'Aim Higher',
+                'location': 'Naalya, Kampala',
+                'description': 'A top-tier primary school dedicated to nurturing young minds through a holistic approach to education.',
+                'email': 'hillside@education.ug',
+                'website': 'https://hillside.ac.ug'
+            },
+            {
+                'name': 'Victoria Lake College',
+                'motto': 'Leading with Purpose',
+                'location': 'Jinja, Source of the Nile',
+                'description': 'A scenic boarding school focused on leadership, environmental studies, and aquatic sports.',
+                'email': 'info@victorialake.com',
+                'website': 'https://victorialake.com'
+            },
+            {
+                'name': 'Nile Valley Technical School',
+                'motto': 'Skills for Life',
+                'location': 'Nakawa, Kampala',
+                'description': 'Specializing in vocational and technical skills, from robotics to sustainable construction.',
+                'email': 'nakatech@gov.ug',
+                'website': 'https://niletech.ac.ug'
+            },
+            {
+                'name': 'Rwenzori Mountains Academy',
+                'motto': 'Heights of Knowledge',
+                'location': 'Kasese, Rwenzori Ridge',
+                'description': 'An eco-friendly science academy situated at the foothills of the Rwenzori mountains.',
+                'email': 'rwenzori@science.ac.ug',
+                'website': 'https://rwenzori.ac.ug'
+            },
+            {
+                'name': 'Crested Crane High School',
+                'motto': 'Integrity and Honor',
+                'location': 'Gulu, Northern Region',
+                'description': 'A modern high school known for sports excellence and community leadership programs.',
+                'email': 'crested@high.ug',
+                'website': 'https://crestedcrane.com'
+            },
+            {
+                'name': 'Mount Elgon Prep',
+                'motto': 'The First Step',
+                'location': 'Mbale, Eastern Uganda',
+                'description': 'A nurturing environment for early childhood and primary education with a focus on arts and music.',
+                'email': 'admin@mtelgon.ac.ug',
+                'website': 'https://mtelgon.ac.ug'
+            }
+        ]
+
         schools = []
-        for name in school_names:
+        for s_data in detailed_schools:
+            s_slug = slugify(s_data['name'])
             school, created = School.objects.get_or_create(
-                name=name,
-                slug=slugify(name),
-                location='Kampala, Uganda',
-                description=f'Leading educational institution: {name}'
+                name=s_data['name'],
+                slug=s_slug,
+                defaults={
+                    'motto': s_data['motto'],
+                    'location': s_data['location'],
+                    'description': s_data['description'],
+                    'email': s_data['email'],
+                    'website': s_data['website'],
+                    'logo': f'school_logos/{s_slug.replace("-", "")}_logo.png',
+                    'cover_image': f'school_covers/{s_slug.replace("-", "")}_cover.jpg'
+                }
             )
             schools.append(school)
             if created:
-                SchoolEvent.objects.create(school=school, title='Annual Sports Day', description='Compete for the gold!', date=date.today() + timedelta(days=30))
-                SchoolReview.objects.create(school=school, user=student_user, rating=5, comment='Amazing school with great facilities.')
+                # Add Gallery
+                SchoolGalleryImage.objects.create(school=school, image=None, caption='Main Campus Entrance')
+                SchoolGalleryImage.objects.create(school=school, image=None, caption='Science Laboratory')
+                
+                # Add Administrator
+                SchoolAdministrator.objects.create(
+                    school=school, 
+                    name=f'Dr. {s_data["name"].split()[0]} Principal',
+                    role='Headteacher',
+                    bio='A veteran educator with over 20 years of experience in institutional management.'
+                )
+                
+                # Add Event
+                SchoolEvent.objects.create(
+                    school=school, 
+                    title='Annual Science Fair', 
+                    description='A showcase of student innovation and technological projects.', 
+                    date=date.today() + timedelta(days=random.randint(10, 60))
+                )
+                
+                # Add Review
+                SchoolReview.objects.create(
+                    school=school, 
+                    user=student_user, 
+                    rating=random.randint(4, 5), 
+                    comment=f'I love studying at {school.name}. The environment is very supportive.'
+                )
 
         # 3. Club Categories and Clubs
         self.stdout.write('Creating clubs...')
@@ -117,6 +217,26 @@ class Command(BaseCommand):
             target_amount=5000.00,
             school=schools[0],
             description='Help us modernize our learning resource center.'
+        )
+
+        # 6. EduQuest
+        self.stdout.write('Creating eduquest data...')
+        math_eot, created = Material.objects.get_or_create(
+            title='S.1 Mathematics EOT Exam 2024',
+            defaults={
+                'material_type': 'EXAM',
+                'session': 'EOT',
+                'description': 'End of Term 3 exam paper.',
+                'price': 2.50
+            }
+        )
+        if created:
+            self.stdout.write('Material created.')
+
+        MaterialOrder.objects.get_or_create(
+            user=student_user,
+            material=math_eot,
+            defaults={'status': 'COMPLETED'}
         )
 
         self.stdout.write(self.style.SUCCESS('Database seeded successfully!'))

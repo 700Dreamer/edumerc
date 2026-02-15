@@ -63,5 +63,18 @@ Comprehensive guide for interacting with the Edumerk API modules.
 
 ---
 
+## EduQuest (Educational Materials)
+**Base URL**: `/api/v1/quest/`
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/` | GET | List available materials (Exams, Papers) |
+| `{id}/` | GET | Material details |
+| `orders/` | GET/POST | My material orders |
+
+---
+
+---
+
 > [!TIP]
 > Use the `Authorization: Bearer <access_token>` header for all authenticated requests.
