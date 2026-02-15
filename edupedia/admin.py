@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import School, SchoolGalleryImage, SchoolEvent, SchoolAdministrator, PromotionalMaterial
+from .models import School, SchoolGalleryImage, SchoolEvent, SchoolAdministrator, PromotionalMaterial, SchoolReview
 
 class GalleryInline(admin.TabularInline):
     model = SchoolGalleryImage

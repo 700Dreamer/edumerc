@@ -1,11 +1,16 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery
+from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery, ClubCategory
 from .serializers import (
     ClubSerializer, TopicSerializer, LessonSerializer, RoleModelSerializer, 
-    PracticalApplicationSerializer, ClubDiscussionSerializer, AskAIQuerySerializer
+    PracticalApplicationSerializer, ClubDiscussionSerializer, AskAIQuerySerializer,
+    ClubCategorySerializer
 )
+
+class ClubCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ClubCategory.objects.all()
+    serializer_class = ClubCategorySerializer
 
 class ClubViewSet(viewsets.ModelViewSet):
     queryset = Club.objects.all()
@@ -17,6 +22,20 @@ class ClubViewSet(viewsets.ModelViewSet):
         club = self.get_object()
         topics = club.topics.all()
         serializer = TopicSerializer(topics, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def projects(self, request, pk=None):
+        club = self.get_object()
+        apps = club.practical_apps.all()
+        serializer = PracticalApplicationSerializer(apps, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def role_models(self, request, pk=None):
+        club = self.get_object()
+        models = club.role_models.all()
+        serializer = RoleModelSerializer(models, many=True)
         return Response(serializer.data)
 
 class TopicViewSet(viewsets.ModelViewSet):

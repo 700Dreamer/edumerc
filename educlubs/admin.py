@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery
+from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery, ClubCategory
 
 class LessonInline(admin.TabularInline):
     model = Lesson

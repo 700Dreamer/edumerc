@@ -1,5 +1,10 @@
 from rest_framework import serializers
-from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery
+from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery, ClubCategory
+
+class ClubCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClubCategory
+        fields = '__all__'
 
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:
@@ -31,13 +36,11 @@ class ClubDiscussionSerializer(serializers.ModelSerializer):
 class AskAIQuerySerializer(serializers.ModelSerializer):
     class Meta:
         model = AskAIQuery
-        fields = '__all__'
+        fields = ['id', 'user_name', 'club', 'query', 'response', 'created_at']
 
 class ClubSerializer(serializers.ModelSerializer):
-    # topics = TopicSerializer(many=True, read_only=True)
-    # role_models = RoleModelSerializer(many=True, read_only=True)
-    # practical_apps = PracticalApplicationSerializer(many=True, read_only=True)
+    category_name = serializers.ReadOnlyField(source='category.name')
     
     class Meta:
         model = Club
-        fields = ["name","category","id","cover_image"]
+        fields = ["id", "name", "category", "category_name", "level", "description", "cover_image"]

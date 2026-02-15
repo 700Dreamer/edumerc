@@ -1,13 +1,14 @@
 from django.db import models
 from django.conf import settings
 
+class ClubCategory(models.Model):
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True)
+
+    def __str__(self):
+        return self.name
+
 class Club(models.Model):
-    CATEGORY_CHOICES = (
-        ('Social', 'Social'),
-        ('Teacher', 'Teacher'),
-        ('Subject', 'Subject'),
-    )
-    
     LEVEL_CHOICES = (
         ('Nursery', 'Nursery'),
         
@@ -21,7 +22,7 @@ class Club(models.Model):
     )
 
     name = models.CharField(max_length=255)
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    category = models.ForeignKey(ClubCategory, related_name='clubs', on_delete=models.SET_NULL, null=True, blank=True)
     level = models.CharField(max_length=50, choices=LEVEL_CHOICES, default='General', blank=True, null=True)
     description = models.TextField(blank=True)
     cover_image = models.ImageField(upload_to='club_covers/', blank=True, null=True)

@@ -57,6 +57,8 @@ INSTALLED_APPS = [
     'users',
     'edushop',
     'educlubs',
+    'edufundme',
+    'core',
     'edupedia',
 ]
 
