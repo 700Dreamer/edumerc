@@ -1,21 +1,26 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery, ClubCategory
+from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery, MainCategory, SubCategory
 from .serializers import (
     ClubSerializer, TopicSerializer, LessonSerializer, RoleModelSerializer, 
     PracticalApplicationSerializer, ClubDiscussionSerializer, AskAIQuerySerializer,
-    ClubCategorySerializer
+    MainCategorySerializer, SubCategorySerializer
 )
 
-class ClubCategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = ClubCategory.objects.all()
-    serializer_class = ClubCategorySerializer
+class MainCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = MainCategory.objects.all()
+    serializer_class = MainCategorySerializer
+
+class SubCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = SubCategory.objects.all()
+    serializer_class = SubCategorySerializer
+    filterset_fields = ['main_category']
 
 class ClubViewSet(viewsets.ModelViewSet):
     queryset = Club.objects.all()
     serializer_class = ClubSerializer
-    filterset_fields = ['category', 'level']
+    filterset_fields = ['subcategory']
 
     @action(detail=True, methods=['get'])
     def curriculum(self, request, pk=None):

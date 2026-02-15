@@ -1,35 +1,41 @@
 from django.db import models
 from django.conf import settings
 
-class ClubCategory(models.Model):
-    name = models.CharField(max_length=255)
+class MainCategory(models.Model):
+    name = models.CharField(max_length=255) # e.g., Subject, Social, Teachers
     slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, blank=True, null=True)
 
     def __str__(self):
         return self.name
 
-class Club(models.Model):
-    LEVEL_CHOICES = (
-        ('Nursery', 'Nursery'),
-        
-        ('P1', 'Primary 1'), ('P2', 'Primary 2'), ('P3', 'Primary 3'), 
-        ('P4', 'Primary 4'), ('P5', 'Primary 5'), ('P6', 'Primary 6'), ('P7', 'Primary 7'),
-        
-        ('S1', 'Secondary 1'), ('S2', 'Secondary 2'), ('S3', 'Secondary 3'), 
-        ('S4', 'Secondary 4'), ('S5', 'Secondary 5'), ('S6', 'Secondary 6'),
-        
-        ('General', 'General (All Levels)'),
-    )
+    class Meta:
+        verbose_name_plural = "Main Categories"
 
-    name = models.CharField(max_length=255)
-    category = models.ForeignKey(ClubCategory, related_name='clubs', on_delete=models.SET_NULL, null=True, blank=True)
-    level = models.CharField(max_length=50, choices=LEVEL_CHOICES, default='General', blank=True, null=True)
+class SubCategory(models.Model):
+    main_category = models.ForeignKey(MainCategory, related_name='subcategories', on_delete=models.CASCADE)
+    name = models.CharField(max_length=255) # e.g., Nursery, P7, Sports
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.main_category.name} > {self.name}"
+
+    class Meta:
+        verbose_name_plural = "Sub Categories"
+        ordering = ['order', 'name']
+
+class Club(models.Model):
+    name = models.CharField(max_length=255) # e.g., Math Club, Sports Club
+    subcategory = models.ForeignKey(SubCategory, related_name='clubs', on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     cover_image = models.ImageField(upload_to='club_covers/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name} ({self.level})" if self.level else self.name
+        return f"{self.name} ({self.subcategory.name})"
 
 class Topic(models.Model):
     club = models.ForeignKey(Club, related_name='topics', on_delete=models.CASCADE)

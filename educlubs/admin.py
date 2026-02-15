@@ -1,19 +1,37 @@
 from django.contrib import admin
-from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery, ClubCategory
+from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery, MainCategory, SubCategory
+
+class SubCategoryInline(admin.TabularInline):
+    model = SubCategory
+    extra = 1
+
+class ClubInline(admin.TabularInline):
+    model = Club
+    extra = 1
+
+@admin.register(MainCategory)
+class MainCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug']
+    prepopulated_fields = {'slug': ('name',)}
+    inlines = [SubCategoryInline]
+
+@admin.register(SubCategory)
+class SubCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'main_category', 'slug', 'order']
+    list_filter = ['main_category']
+    prepopulated_fields = {'slug': ('name',)}
+    inlines = [ClubInline]
+
+@admin.register(Club)
+class ClubAdmin(admin.ModelAdmin):
+    list_display = ['name', 'subcategory', 'created_at']
+    list_filter = ['subcategory__main_category', 'subcategory']
+    search_fields = ['name', 'description']
+
 
 class LessonInline(admin.TabularInline):
     model = Lesson
     extra = 1
-
-class TopicInline(admin.TabularInline):
-    model = Topic
-    extra = 1
-
-@admin.register(Club)
-class ClubAdmin(admin.ModelAdmin):
-    list_display = ['name', 'category', 'level', 'created_at']
-    list_filter = ['category', 'level']
-    search_fields = ['name', 'description']
 
 @admin.register(Topic)
 class TopicAdmin(admin.ModelAdmin):
