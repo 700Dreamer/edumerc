@@ -156,52 +156,79 @@ class Command(BaseCommand):
 
         # 3. Club Categories and Clubs
         self.stdout.write('Creating clubs...')
-        coding_cat, _ = ClubCategory.objects.get_or_create(name='Technology', slug='technology')
+        tech_cat, _ = ClubCategory.objects.get_or_create(name='Technology', slug='technology')
+        arts_cat, _ = ClubCategory.objects.get_or_create(name='Arts & Culture', slug='arts-culture')
+        science_cat, _ = ClubCategory.objects.get_or_create(name='Science & Innovation', slug='science-innovation')
+
+        # Robotics
         robotics_club, created = Club.objects.get_or_create(
             name='Robotics & AI',
-            defaults={
-                'category': coding_cat,
-                'description': 'Learn to build the future.'
-            }
+            defaults={'category': tech_cat, 'description': 'Learn to build the future.'}
         )
         if created:
             topic = Topic.objects.create(club=robotics_club, title='Introduction to Arduino', order=1)
             Lesson.objects.create(topic=topic, title='Hello World: Blinking LED', text_content='Your first circuit.', order=1)
-            RoleModel.objects.create(club=robotics_club, name='Elon Musk', bio='Visionary Engineer', expertise='Space & AI')
-            self.stdout.write('Club created.')
+            RoleModel.objects.create(club=robotics_club, name='Elon Musk', bio='Visionary Engineer', contribution='Space & AI')
+
+        # Drama Club
+        drama_club, created = Club.objects.get_or_create(
+            name='Drama & Performing Arts',
+            defaults={'category': arts_cat, 'description': 'Express yourself on stage.'}
+        )
+        if created:
+            topic = Topic.objects.create(club=drama_club, title='Stage Presence', order=1)
+            Lesson.objects.create(topic=topic, title='Body Language Basics', text_content='Mastering the stage.', order=1)
+            RoleModel.objects.create(club=drama_club, name='Viola Davis', bio='Academy Award Winner', contribution='Acting')
+
+        # Science Club
+        science_club, created = Club.objects.get_or_create(
+            name='Young Scientists',
+            defaults={'category': science_cat, 'description': 'Exploring the natural world.'}
+        )
+        if created:
+            topic = Topic.objects.create(club=science_club, title='Renewable Energy', order=1)
+            Lesson.objects.create(topic=topic, title='Solar Power Experiments', text_content='Harnessing the sun.', order=1)
+            RoleModel.objects.create(club=science_club, name='Katherine Johnson', bio='NASA Mathematician', contribution='Physics & Math')
+        
+        self.stdout.write('Clubs seeded.')
 
         # 4. Shop Categories and Products
         self.stdout.write('Creating shop items...')
         stationery, _ = Category.objects.get_or_create(name='Stationery', slug='stationery')
         books, _ = Category.objects.get_or_create(name='Textbooks', slug='textbooks')
+        uniforms, _ = Category.objects.get_or_create(name='Uniforms', slug='uniforms')
+        electronics, _ = Category.objects.get_or_create(name='Electronics', slug='electronics')
         
-        notebook, created = Product.objects.get_or_create(
+        notebook, _ = Product.objects.get_or_create(
             title='Edumerk Branded Notebook',
-            defaults={
-                'category': stationery,
-                'price': 5.00,
-                'stock': 100
-            }
+            defaults={'category': stationery, 'price': 5.00, 'stock': 100}
         )
-        bio_book, created = Product.objects.get_or_create(
+        bio_book, _ = Product.objects.get_or_create(
             title='Advanced Biology Vol 1',
-            defaults={
-                'category': books,
-                'price': 25.00,
-                'stock': 50
-            }
+            defaults={'category': books, 'price': 25.00, 'stock': 50}
+        )
+        calculator, _ = Product.objects.get_or_create(
+            title='Scientific Calculator FX-991EX',
+            defaults={'category': electronics, 'price': 45.00, 'stock': 30}
+        )
+        uniform_set, _ = Product.objects.get_or_create(
+            title='Full School Uniform Set',
+            defaults={'category': uniforms, 'price': 60.00, 'stock': 200, 'description': 'Complete set for secondary level.'}
         )
         
-        bundle, created = Bundle.objects.get_or_create(
+        bundle1, created = Bundle.objects.get_or_create(
             title='Science Starter Pack',
-            defaults={
-                'price': 28.00,
-                'description': 'Essential kit for young scientists.'
-            }
+            defaults={'price': 28.00, 'description': 'Essential kit for young scientists.'}
         )
-        if created:
-            bundle.products.add(notebook, bio_book)
-            self.stdout.write('Bundle created.')
+        if created: bundle1.products.add(notebook, bio_book)
+
+        bundle2, created = Bundle.objects.get_or_create(
+            title='Tech Savvy Student Pack',
+            defaults={'price': 48.00, 'description': 'Stay ahead with tech tools.'}
+        )
+        if created: bundle2.products.add(notebook, calculator)
+
+        self.stdout.write('Shop items seeded.')
 
         # 5. Fund Me
         self.stdout.write('Creating fundme data...')
@@ -212,11 +239,25 @@ class Command(BaseCommand):
             deadline=date.today() + timedelta(days=60),
             eligibility='Students interested in STEM with 3.5+ GPA'
         )
+        Scholarship.objects.get_or_create(
+            title='Artistic Vision Award',
+            provider='Creativity Hub',
+            amount=500.00,
+            deadline=date.today() + timedelta(days=45),
+            eligibility='Outstanding performance in digital or traditional arts.'
+        )
+
         Campaign.objects.get_or_create(
-            title='Library Renovation for St. Mary',
+            title='Library Renovation for Heritage Intl',
             target_amount=5000.00,
             school=schools[0],
             description='Help us modernize our learning resource center.'
+        )
+        Campaign.objects.get_or_create(
+            title='Solar Power for St. Mary High',
+            target_amount=3500.00,
+            school=schools[1],
+            description='Sustainable energy for a sustainable future.'
         )
 
         # 6. EduQuest
@@ -230,13 +271,33 @@ class Command(BaseCommand):
                 'price': 2.50
             }
         )
-        if created:
-            self.stdout.write('Material created.')
+        phys_mid, _ = Material.objects.get_or_create(
+            title='S.4 Physics MID Term Paper 2024',
+            defaults={
+                'material_type': 'EXAM',
+                'session': 'MID',
+                'description': 'Focused on mechanics and electricity.',
+                'price': 3.00
+            }
+        )
+        hist_notes, _ = Material.objects.get_or_create(
+            title='History of East Africa - Full Notes',
+            defaults={
+                'material_type': 'OTHER',
+                'description': 'Comprehensive notes for O-Level.',
+                'price': 10.00
+            }
+        )
 
         MaterialOrder.objects.get_or_create(
             user=student_user,
             material=math_eot,
             defaults={'status': 'COMPLETED'}
+        )
+        MaterialOrder.objects.get_or_create(
+            user=student_user,
+            material=hist_notes,
+            defaults={'status': 'PENDING'}
         )
 
         self.stdout.write(self.style.SUCCESS('Database seeded successfully!'))
