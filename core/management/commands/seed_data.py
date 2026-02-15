@@ -120,15 +120,14 @@ class Command(BaseCommand):
                     'description': s_data['description'],
                     'email': s_data['email'],
                     'website': s_data['website'],
-                    'logo': f'school_logos/{s_slug.replace("-", "")}_logo.png',
-                    'cover_image': f'school_covers/{s_slug.replace("-", "")}_cover.jpg'
+                    'logo': 'school_logos/master_logo.png',
+                    'cover_image': 'school_covers/master_cover.jpg'
                 }
             )
             schools.append(school)
             if created:
                 # Add Gallery
-                SchoolGalleryImage.objects.create(school=school, image=None, caption='Main Campus Entrance')
-                SchoolGalleryImage.objects.create(school=school, image=None, caption='Science Laboratory')
+                SchoolGalleryImage.objects.create(school=school, image='school_gallery/master_gallery.jpg', caption='Main Campus Overview')
                 
                 # Add Administrator
                 SchoolAdministrator.objects.create(
