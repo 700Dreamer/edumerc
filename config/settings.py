@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'core',
     'eduquest',
     'edupedia',
+    'payments',
 ]
 
 MIDDLEWARE = [
@@ -138,7 +139,7 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=2),
 }
 
 
@@ -163,4 +164,11 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# PesaPal V3 Production Settings
+PESAPAL_CONSUMER_KEY = 'r6GTlEzjpyEmMb7aRS8vgDG6Cpzrw5Kl'
+PESAPAL_CONSUMER_SECRET = '7r9vNvuZ34h1maUIwYW6enmCCPY='
+
+# The URL where PesaPal will redirect the user after payment
+PESAPAL_CALLBACK_URL = 'https://1cf2-41-84-202-116.ngrok-free.app/api/v1/payments/initiate/payment-success' 
 

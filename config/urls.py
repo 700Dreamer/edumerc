@@ -25,6 +25,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/auth/', include('users.urls')),
     path('api/v1/shop/', include('edushop.urls')),
+    path('api/v1/', include('payments.urls')),
     path('api/v1/clubs/', include('educlubs.urls')),
     path('api/v1/schools/', include('edupedia.urls')),
     path('api/v1/fundme/', include('edufundme.urls')),
