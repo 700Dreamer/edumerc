@@ -138,7 +138,7 @@ REST_FRAMEWORK = {
 
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=600),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=2),
 }
 
@@ -167,8 +167,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # PesaPal V3 Production Settings
 
-PESAPAL_CONSUMER_KEY = "your_production_key"
-PESAPAL_CONSUMER_SECRET = "your_production_secret"
+PESAPAL_CONSUMER_KEY = "r6GTlEzjpyEmMb7aRS8vgDG6Cpzrw5Kl"
+PESAPAL_CONSUMER_SECRET = "7r9vNvuZ34h1maUIwYW6enmCCPY="
 PESAPAL_IPN_ID = "91ec3822-8424-49cb-920e-dce64e841f62"
 
 

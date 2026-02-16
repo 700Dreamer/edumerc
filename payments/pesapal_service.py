@@ -57,7 +57,7 @@ class PesaPalService:
 
         try:
             response = requests.post(
-                url, json=payload, headers=headers, timeout=10
+                url, json=payload, headers=headers, timeout=100
             )
 
             if response.status_code != 200:
@@ -66,14 +66,16 @@ class PesaPalService:
                     f"{response.status_code}: {response.text}"
                 )
                 return None
+            
 
             token = response.json().get("token")
+
             if not token:
                 logger.error("[PesaPal] Token missing in response")
                 return None
 
             # Cache for 5 minutes
-            cache.set("pesapal_token", token, timeout=3000)
+            cache.set("pesapal_token", token, timeout=300)
             return token
 
         except Exception as e:
