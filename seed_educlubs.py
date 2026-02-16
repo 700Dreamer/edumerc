@@ -1,13 +1,19 @@
 import os
 import django
+import random
 
+# Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from educlubs.models import (
     MainCategory, SubjectLevel, SubjectClub, Topic, Lesson,
-    SocialGroup, SocialClub, TeacherCategory, TeacherClub
+    SocialGroup, SocialClub, ClubDiscussion,
+    TeacherCategory, TeacherClub, RoleModel, PracticalApplication
 )
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 def seed_educlubs():
     print("Seeding heterogeneous Educlubs...")
@@ -16,84 +22,82 @@ def seed_educlubs():
     subject_cat, _ = MainCategory.objects.get_or_create(name="Subject Clubs", slug="subject-clubs")
     social_cat, _ = MainCategory.objects.get_or_create(name="Social Clubs", slug="social-clubs")
     teacher_cat, _ = MainCategory.objects.get_or_create(name="Teacher Hubs", slug="teacher-hubs")
-    
-    # --- SUBJECT BRANCH ---
-    levels = [
-        "Nursery", "Pre-Primary", "P1", "P2", "P3", "P4", "P5", "P6", "P7",
-        "S1", "S2", "S3", "S4", "S5", "S6"
-    ]
-    for i, level_name in enumerate(levels):
-        lvl, _ = SubjectLevel.objects.get_or_create(
-            main_category=subject_cat,
-            name=level_name,
-            slug=level_name.lower().replace(" ", "-"),
-            order=i
-        )
-        if level_name == "P7":
-            # Add some clubs
-            math, _ = SubjectClub.objects.get_or_create(
-                level=lvl,
-                name="Math Club",
-                description="Mastering primary mathematics."
-            )
-            eng, _ = SubjectClub.objects.get_or_create(
-                level=lvl,
-                name="English Club",
-                description="Grammar and literature excellence."
-            )
-            
-            # Add Topic/Lesson to Math
-            t1, _ = Topic.objects.get_or_create(club=math, title="Fractions", order=1)
-            Lesson.objects.get_or_create(topic=t1, title="Introduction to Fractions", order=1)
-            
-    # --- SOCIAL BRANCH ---
-    sports, _ = SocialGroup.objects.get_or_create(
-        main_category=social_cat,
-        name="Sports",
-        slug="sports",
-        icon="sports_soccer"
-    )
-    biz, _ = SocialGroup.objects.get_or_create(
-        main_category=social_cat,
-        name="Business",
-        slug="business",
-        icon="business"
+
+    # 2. Subject Branch
+    p1, _ = SubjectLevel.objects.get_or_create(main_category=subject_cat, name="P1", order=1)
+    p7, _ = SubjectLevel.objects.get_or_create(main_category=subject_cat, name="P7", order=7)
+
+    math, _ = SubjectClub.objects.get_or_create(
+        level=p7, 
+        name="Math Club", 
+        description="Mastering primary mathematics.",
+        icon="📚"
     )
     
-    SocialClub.objects.get_or_create(
+    # Topics for Subject
+    t1, _ = Topic.objects.get_or_create(subject_club=math, title="Fractions", order=1)
+    Lesson.objects.get_or_create(topic=t1, title="Intro to Fractions", content_type="Video Lesson")
+    Lesson.objects.get_or_create(topic=t1, title="Adding Fractions", content_type="Reading Material")
+
+    # Role Model for Subject
+    RoleModel.objects.get_or_create(
+        subject_club=math,
+        name="Sir Isaac Newton",
+        bio="Mathematician and physicist.",
+        contribution="Universal gravitation and calculus."
+    )
+
+    # Practical for Subject
+    PracticalApplication.objects.get_or_create(
+        subject_club=math,
+        title="Building a Calculator",
+        description="Build a simple mechanical calculator using cardboard.",
+        guide="1. Cut cardboard\n2. Label numbers\n3. Use rubber bands for gears"
+    )
+
+    # 3. Social Branch
+    sports, _ = SocialGroup.objects.get_or_create(main_category=social_cat, name="Sports & Games", icon="⚽")
+    
+    football, _ = SocialClub.objects.get_or_create(
         group=sports,
         name="Football Club",
-        description="Daily training and matches.",
-        facilitator="Coach Kizito"
+        description="Play and learn football tactics.",
+        facilitator="Coach John",
+        icon="⚽"
     )
-    SocialClub.objects.get_or_create(
-        group=biz,
-        name="Entrepreneurs Club",
-        description="Learning small business skills.",
-        facilitator="Ms. Namubiru"
+
+    # Discussion for Social
+    user, _ = User.objects.get_or_create(username="admin")
+    ClubDiscussion.objects.get_or_create(
+        social_club=football,
+        user=user,
+        content="When is the next match?"
     )
+
+    # Role Model for Social
+    RoleModel.objects.get_or_create(
+        social_club=football,
+        name="Lionel Messi",
+        bio="Legendary footballer.",
+        contribution="Won 8 Ballon d'Ors."
+    )
+
+    # 4. Teacher Branch
+    admin_hubs, _ = TeacherCategory.objects.get_or_create(main_category=teacher_cat, name="Administrative Hubs")
     
-    # --- TEACHER BRANCH ---
-    admin_cat, _ = TeacherCategory.objects.get_or_create(
-        main_category=teacher_cat,
-        name="Administrative",
-        slug="administrative",
-        is_administrative=True
-    )
-    prof_cat, _ = TeacherCategory.objects.get_or_create(
-        main_category=teacher_cat,
-        name="Professional Hub",
-        slug="professional-hub"
-    )
-    
-    TeacherClub.objects.get_or_create(
-        category=admin_cat,
+    head_forum, _ = TeacherClub.objects.get_or_create(
+        category=admin_hubs,
         name="Headteachers Forum",
-        description="Policy discussion and school management.",
-        duration="Continuous"
+        description="Leadership for school heads.",
+        duration="12 months",
+        icon="👨‍🏫"
     )
-    
-    print("Seeding complete!")
+
+    # Topic for Teacher
+    t2, _ = Topic.objects.get_or_create(teacher_club=head_forum, title="Resource Management", order=1)
+    Lesson.objects.get_or_create(topic=t2, title="Budgeting 101", content_type="Workshop")
+
+    print("Seeding Complete!")
 
 if __name__ == "__main__":
     seed_educlubs()

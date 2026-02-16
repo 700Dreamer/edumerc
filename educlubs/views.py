@@ -11,7 +11,8 @@ from .serializers import (
     SubjectLevelSerializer, SubjectClubSerializer, TopicSerializer, LessonSerializer,
     SocialGroupSerializer, SocialClubSerializer, ClubDiscussionSerializer,
     TeacherCategorySerializer, TeacherClubSerializer,
-    RoleModelSerializer, PracticalApplicationSerializer, AskAIQuerySerializer
+    RoleModelSerializer, PracticalApplicationSerializer, AskAIQuerySerializer,
+    UnifiedClubDetailSerializer
 )
 
 class MainCategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -69,6 +70,26 @@ class ClubViewSet(viewsets.ViewSet):
         else:
             return Response({"error": "Invalid type"}, status=400)
 
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        ctype = request.query_params.get('type')
+        if not ctype:
+            return Response({"error": "type parameter (subject|social|teacher) is required"}, status=400)
+
+        try:
+            if ctype == 'subject':
+                obj = SubjectClub.objects.get(pk=pk)
+            elif ctype == 'social':
+                obj = SocialClub.objects.get(pk=pk)
+            elif ctype == 'teacher':
+                obj = TeacherClub.objects.get(pk=pk)
+            else:
+                return Response({"error": "Invalid type"}, status=400)
+        except (SubjectClub.DoesNotExist, SocialClub.DoesNotExist, TeacherClub.DoesNotExist):
+            return Response({"error": "Club not found"}, status=404)
+
+        serializer = UnifiedClubDetailSerializer(obj)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='curriculum/(?P<club_id>[^/.]+)')

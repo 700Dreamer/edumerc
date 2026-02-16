@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils.text import slugify
 
 class MainCategory(models.Model):
     name = models.CharField(max_length=255) # Subject, Social, Teachers
@@ -24,6 +25,11 @@ class SubjectLevel(models.Model):
     def __str__(self):
         return f"Level: {self.name}"
 
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
     class Meta:
         ordering = ['order']
 
@@ -31,6 +37,7 @@ class SubjectClub(models.Model):
     level = models.ForeignKey(SubjectLevel, related_name='clubs', on_delete=models.CASCADE)
     name = models.CharField(max_length=255) # Math Club, Science Club
     description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, default="📚")
     cover_image = models.ImageField(upload_to='subject_club_covers/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -38,7 +45,9 @@ class SubjectClub(models.Model):
         return f"{self.name} ({self.level.name})"
 
 class Topic(models.Model):
-    club = models.ForeignKey(SubjectClub, related_name='topics', on_delete=models.CASCADE)
+    subject_club = models.ForeignKey('SubjectClub', related_name='topics', on_delete=models.CASCADE, null=True, blank=True)
+    social_club = models.ForeignKey('SocialClub', related_name='topics', on_delete=models.CASCADE, null=True, blank=True)
+    teacher_club = models.ForeignKey('TeacherClub', related_name='topics', on_delete=models.CASCADE, null=True, blank=True)
     title = models.CharField(max_length=255)
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -47,7 +56,8 @@ class Topic(models.Model):
         ordering = ['order', 'created_at']
 
     def __str__(self):
-        return f"{self.title} - {self.club.name}"
+        club_name = self.subject_club.name if self.subject_club else (self.social_club.name if self.social_club else self.teacher_club.name if self.teacher_club else "Unknown")
+        return f"{self.title} - {club_name}"
 
 class Lesson(models.Model):
     TYPE_CHOICES = (
@@ -85,6 +95,7 @@ class SocialClub(models.Model):
     group = models.ForeignKey(SocialGroup, related_name='clubs', on_delete=models.CASCADE)
     name = models.CharField(max_length=255) # Football, Chess
     description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, default="🤝")
     facilitator = models.CharField(max_length=255, blank=True)
     cover_image = models.ImageField(upload_to='social_club_covers/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -93,13 +104,16 @@ class SocialClub(models.Model):
         return f"{self.name} ({self.group.name})"
 
 class ClubDiscussion(models.Model):
-    club = models.ForeignKey(SocialClub, related_name='discussions', on_delete=models.CASCADE)
+    subject_club = models.ForeignKey('SubjectClub', related_name='discussions', on_delete=models.CASCADE, null=True, blank=True)
+    social_club = models.ForeignKey('SocialClub', related_name='discussions', on_delete=models.CASCADE, null=True, blank=True)
+    teacher_club = models.ForeignKey('TeacherClub', related_name='discussions', on_delete=models.CASCADE, null=True, blank=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Discussion in {self.club.name} by {self.user.username}"
+        club_name = self.subject_club.name if self.subject_club else (self.social_club.name if self.social_club else self.teacher_club.name if self.teacher_club else "Unknown")
+        return f"Discussion in {club_name} by {self.user.username}"
 
 # --- TEACHER BRANCH (Professional) ---
 
@@ -116,6 +130,7 @@ class TeacherClub(models.Model):
     category = models.ForeignKey(TeacherCategory, related_name='clubs', on_delete=models.CASCADE)
     name = models.CharField(max_length=255) # Headteachers Forum
     description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, default="👨‍🏫")
     duration = models.CharField(max_length=100, blank=True, help_text="e.g. 6 months")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -125,7 +140,9 @@ class TeacherClub(models.Model):
 # --- COMMON MODELS ---
 
 class RoleModel(models.Model):
-    subject_club = models.ForeignKey(SubjectClub, related_name='role_models', on_delete=models.CASCADE, null=True, blank=True)
+    subject_club = models.ForeignKey('SubjectClub', related_name='role_models', on_delete=models.CASCADE, null=True, blank=True)
+    social_club = models.ForeignKey('SocialClub', related_name='role_models', on_delete=models.CASCADE, null=True, blank=True)
+    teacher_club = models.ForeignKey('TeacherClub', related_name='role_models', on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=255)
     bio = models.TextField()
     contribution = models.TextField()
@@ -135,7 +152,9 @@ class RoleModel(models.Model):
         return self.name
 
 class PracticalApplication(models.Model):
-    subject_club = models.ForeignKey(SubjectClub, related_name='practical_apps', on_delete=models.CASCADE, null=True, blank=True)
+    subject_club = models.ForeignKey('SubjectClub', related_name='practical_apps', on_delete=models.CASCADE, null=True, blank=True)
+    social_club = models.ForeignKey('SocialClub', related_name='practical_apps', on_delete=models.CASCADE, null=True, blank=True)
+    teacher_club = models.ForeignKey('TeacherClub', related_name='practical_apps', on_delete=models.CASCADE, null=True, blank=True)
     title = models.CharField(max_length=255)
     description = models.TextField()
     guide = models.TextField()
@@ -145,7 +164,9 @@ class PracticalApplication(models.Model):
         return self.title
 
 class AskAIQuery(models.Model):
-    subject_club = models.ForeignKey(SubjectClub, related_name='ai_queries', on_delete=models.CASCADE, null=True, blank=True)
+    subject_club = models.ForeignKey('SubjectClub', related_name='ai_queries', on_delete=models.CASCADE, null=True, blank=True)
+    social_club = models.ForeignKey('SocialClub', related_name='ai_queries', on_delete=models.CASCADE, null=True, blank=True)
+    teacher_club = models.ForeignKey('TeacherClub', related_name='ai_queries', on_delete=models.CASCADE, null=True, blank=True)
     user_name = models.CharField(max_length=255)
     query = models.TextField()
     response = models.TextField(blank=True)
