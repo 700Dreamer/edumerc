@@ -26,8 +26,8 @@ def verify():
     p7_sub = next(s for s in subs if s['name'] == 'P7')
     print(f"P7 Subcategory ID: {p7_sub['id']}")
     
-    print(f"\n--- Clubs for P7 (Subcategory {p7_sub['id']}) ---")
-    res = client.get(f'/api/v1/clubs/clubs/?subcategory={p7_sub["id"]}')
+    print("--- 3. Get Real Clubs (Subject - P7) ---")
+    res = client.get(f'/api/v1/clubs/clubs/?subcategory_id={p7_sub["id"]}&type=subject')
     clubs = res.data
     print(json.dumps(clubs, indent=2))
 

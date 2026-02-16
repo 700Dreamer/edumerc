@@ -1,16 +1,27 @@
 from rest_framework import serializers
-from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery, MainCategory, SubCategory
+from .models import (
+    MainCategory, SubjectLevel, SubjectClub, Topic, Lesson,
+    SocialGroup, SocialClub, ClubDiscussion,
+    TeacherCategory, TeacherClub, RoleModel, PracticalApplication, AskAIQuery
+)
 
 class MainCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = MainCategory
         fields = '__all__'
 
-class SubCategorySerializer(serializers.ModelSerializer):
-    main_category_name = serializers.ReadOnlyField(source='main_category.name')
-    
+# --- SUBJECT SERIALIZERS ---
+
+class SubjectLevelSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(default='subject', read_only=True)
     class Meta:
-        model = SubCategory
+        model = SubjectLevel
+        fields = '__all__'
+
+class SubjectClubSerializer(serializers.ModelSerializer):
+    level_name = serializers.ReadOnlyField(source='level.name')
+    class Meta:
+        model = SubjectClub
         fields = '__all__'
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -20,10 +31,45 @@ class LessonSerializer(serializers.ModelSerializer):
 
 class TopicSerializer(serializers.ModelSerializer):
     lessons = LessonSerializer(many=True, read_only=True)
-
     class Meta:
         model = Topic
         fields = '__all__'
+
+# --- SOCIAL SERIALIZERS ---
+
+class SocialGroupSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(default='social', read_only=True)
+    class Meta:
+        model = SocialGroup
+        fields = '__all__'
+
+class SocialClubSerializer(serializers.ModelSerializer):
+    group_name = serializers.ReadOnlyField(source='group.name')
+    class Meta:
+        model = SocialClub
+        fields = '__all__'
+
+class ClubDiscussionSerializer(serializers.ModelSerializer):
+    username = serializers.ReadOnlyField(source='user.username')
+    class Meta:
+        model = ClubDiscussion
+        fields = '__all__'
+
+# --- TEACHER SERIALIZERS ---
+
+class TeacherCategorySerializer(serializers.ModelSerializer):
+    type = serializers.CharField(default='teacher', read_only=True)
+    class Meta:
+        model = TeacherCategory
+        fields = '__all__'
+
+class TeacherClubSerializer(serializers.ModelSerializer):
+    category_name = serializers.ReadOnlyField(source='category.name')
+    class Meta:
+        model = TeacherClub
+        fields = '__all__'
+
+# --- COMMON SERIALIZERS ---
 
 class RoleModelSerializer(serializers.ModelSerializer):
     class Meta:
@@ -35,21 +81,7 @@ class PracticalApplicationSerializer(serializers.ModelSerializer):
         model = PracticalApplication
         fields = '__all__'
 
-class ClubDiscussionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ClubDiscussion
-        fields = '__all__'
-
 class AskAIQuerySerializer(serializers.ModelSerializer):
     class Meta:
         model = AskAIQuery
-        fields = ['id', 'user_name', 'club', 'query', 'response', 'created_at']
-
-class ClubSerializer(serializers.ModelSerializer):
-    subcategory_name = serializers.ReadOnlyField(source='subcategory.name')
-    main_category_name = serializers.ReadOnlyField(source='subcategory.main_category.name')
-    
-    class Meta:
-        model = Club
         fields = '__all__'
-

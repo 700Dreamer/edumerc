@@ -1,48 +1,87 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery, MainCategory, SubCategory
+from .models import (
+    MainCategory, SubjectLevel, SubjectClub, Topic, Lesson,
+    SocialGroup, SocialClub, ClubDiscussion,
+    TeacherCategory, TeacherClub, RoleModel, PracticalApplication, AskAIQuery
+)
 from .serializers import (
-    ClubSerializer, TopicSerializer, LessonSerializer, RoleModelSerializer, 
-    PracticalApplicationSerializer, ClubDiscussionSerializer, AskAIQuerySerializer,
-    MainCategorySerializer, SubCategorySerializer
+    MainCategorySerializer,
+    SubjectLevelSerializer, SubjectClubSerializer, TopicSerializer, LessonSerializer,
+    SocialGroupSerializer, SocialClubSerializer, ClubDiscussionSerializer,
+    TeacherCategorySerializer, TeacherClubSerializer,
+    RoleModelSerializer, PracticalApplicationSerializer, AskAIQuerySerializer
 )
 
 class MainCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = MainCategory.objects.all()
     serializer_class = MainCategorySerializer
 
-class SubCategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = SubCategory.objects.all()
-    serializer_class = SubCategorySerializer
-    filterset_fields = ['main_category']
+class SubCategoryViewSet(viewsets.ViewSet):
+    """
+    Step 2: Returns sub-categories for a specific main category.
+    Dynamic: Returns SubjectLevel, SocialGroup, or TeacherCategory.
+    """
+    def list(self, request):
+        main_cat_id = request.query_params.get('main_category')
+        if not main_cat_id:
+            return Response({"error": "main_category ID is required"}, status=400)
+        
+        try:
+            main_cat = MainCategory.objects.get(id=main_cat_id)
+        except MainCategory.DoesNotExist:
+            return Response({"error": "MainCategory not found"}, status=404)
 
-class ClubViewSet(viewsets.ModelViewSet):
-    queryset = Club.objects.all()
-    serializer_class = ClubSerializer
-    filterset_fields = ['subcategory']
+        name = main_cat.name.lower()
+        if 'subject' in name:
+            data = SubjectLevelSerializer(main_cat.subject_levels.all(), many=True).data
+        elif 'social' in name:
+            data = SocialGroupSerializer(main_cat.social_groups.all(), many=True).data
+        elif 'teacher' in name:
+            data = TeacherCategorySerializer(main_cat.teacher_categories.all(), many=True).data
+        else:
+            data = []
+        
+        return Response(data)
 
-    @action(detail=True, methods=['get'])
-    def curriculum(self, request, pk=None):
-        club = self.get_object()
-        topics = club.topics.all()
-        serializer = TopicSerializer(topics, many=True)
+class ClubViewSet(viewsets.ViewSet):
+    """
+    Step 3: Returns clubs for a specific sub-category.
+    Filter by subcategory_id and type (subject|social|teacher).
+    """
+    def list(self, request):
+        sub_id = request.query_params.get('subcategory_id')
+        ctype = request.query_params.get('type') # 'subject', 'social', or 'teacher'
+
+        if not sub_id or not ctype:
+            return Response({"error": "subcategory_id and type are required"}, status=400)
+
+        if ctype == 'subject':
+            clubs = SubjectClub.objects.filter(level_id=sub_id)
+            serializer = SubjectClubSerializer(clubs, many=True)
+        elif ctype == 'social':
+            clubs = SocialClub.objects.filter(group_id=sub_id)
+            serializer = SocialClubSerializer(clubs, many=True)
+        elif ctype == 'teacher':
+            clubs = TeacherClub.objects.filter(category_id=sub_id)
+            serializer = TeacherClubSerializer(clubs, many=True)
+        else:
+            return Response({"error": "Invalid type"}, status=400)
+
         return Response(serializer.data)
 
-    @action(detail=True, methods=['get'])
-    def projects(self, request, pk=None):
-        club = self.get_object()
-        apps = club.practical_apps.all()
-        serializer = PracticalApplicationSerializer(apps, many=True)
-        return Response(serializer.data)
+    @action(detail=False, methods=['get'], url_path='curriculum/(?P<club_id>[^/.]+)')
+    def curriculum(self, request, club_id=None):
+        topics = Topic.objects.filter(club_id=club_id).prefetch_related('lessons')
+        return Response(TopicSerializer(topics, many=True).data)
 
-    @action(detail=True, methods=['get'])
-    def role_models(self, request, pk=None):
-        club = self.get_object()
-        models = club.role_models.all()
-        serializer = RoleModelSerializer(models, many=True)
-        return Response(serializer.data)
+    @action(detail=False, methods=['get'], url_path='discussions/(?P<club_id>[^/.]+)')
+    def discussions(self, request, club_id=None):
+        discussions = ClubDiscussion.objects.filter(club_id=club_id).order_by('-created_at')
+        return Response(ClubDiscussionSerializer(discussions, many=True).data)
 
+# Generic fallback viewsets for administrative CRUD if needed
 class TopicViewSet(viewsets.ModelViewSet):
     queryset = Topic.objects.all()
     serializer_class = TopicSerializer
@@ -51,18 +90,6 @@ class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
 
-class RoleModelViewSet(viewsets.ModelViewSet):
-    queryset = RoleModel.objects.all()
-    serializer_class = RoleModelSerializer
-
-class PracticalApplicationViewSet(viewsets.ModelViewSet):
-    queryset = PracticalApplication.objects.all()
-    serializer_class = PracticalApplicationSerializer
-
 class ClubDiscussionViewSet(viewsets.ModelViewSet):
     queryset = ClubDiscussion.objects.all()
     serializer_class = ClubDiscussionSerializer
-
-class AskAIQueryViewSet(viewsets.ModelViewSet):
-    queryset = AskAIQuery.objects.all()
-    serializer_class = AskAIQuerySerializer

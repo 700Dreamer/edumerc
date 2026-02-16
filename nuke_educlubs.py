@@ -8,30 +8,31 @@ django.setup()
 def nuke_educlubs():
     with connection.cursor() as cursor:
         cursor.execute("PRAGMA foreign_keys = OFF")
-        # Tables to drop
+        # List all possible educlubs tables
         tables = [
             'educlubs_maincategory', 
-            'educlubs_subcategory', 
-            'educlubs_club',
-            'educlubs_socialcategory',
-            'educlubs_teacherhubcategory',
-            'educlubs_subjectcategory',
-            'educlubs_clubcategory',
+            'educlubs_subjectlevel', 
+            'educlubs_subjectclub',
             'educlubs_topic',
             'educlubs_lesson',
+            'educlubs_socialgroup',
+            'educlubs_socialclub',
+            'educlubs_clubdiscussion',
+            'educlubs_teachercategory',
+            'educlubs_teacherclub',
             'educlubs_rolemodel',
             'educlubs_practicalapplication',
-            'educlubs_clubdiscussion',
-            'educlubs_askaiquery'
+            'educlubs_askaiquery',
+            'educlubs_subcategory',
+            'educlubs_club'
         ]
         for table in tables:
             try:
-                cursor.execute(f"DROP TABLE {table}")
+                cursor.execute(f"DROP TABLE IF EXISTS {table}")
                 print(f"Dropped {table}")
             except Exception as e:
                 print(f"Failed to drop {table}: {e}")
         
-        # Clear migration history for educlubs
         cursor.execute("DELETE FROM django_migrations WHERE app='educlubs'")
         print("Cleared django_migrations for educlubs")
 

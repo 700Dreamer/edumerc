@@ -1,62 +1,94 @@
 from django.contrib import admin
-from .models import Club, Topic, Lesson, RoleModel, PracticalApplication, ClubDiscussion, AskAIQuery, MainCategory, SubCategory
+from .models import (
+    MainCategory, SubjectLevel, SubjectClub, Topic, Lesson,
+    SocialGroup, SocialClub, ClubDiscussion,
+    TeacherCategory, TeacherClub, RoleModel, PracticalApplication, AskAIQuery
+)
 
-class SubCategoryInline(admin.TabularInline):
-    model = SubCategory
-    extra = 1
-
-class ClubInline(admin.TabularInline):
-    model = Club
-    extra = 1
-
-@admin.register(MainCategory)
-class MainCategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug']
-    prepopulated_fields = {'slug': ('name',)}
-    inlines = [SubCategoryInline]
-
-@admin.register(SubCategory)
-class SubCategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'main_category', 'slug', 'order']
-    list_filter = ['main_category']
-    prepopulated_fields = {'slug': ('name',)}
-    inlines = [ClubInline]
-
-@admin.register(Club)
-class ClubAdmin(admin.ModelAdmin):
-    list_display = ['name', 'subcategory', 'created_at']
-    list_filter = ['subcategory__main_category', 'subcategory']
-    search_fields = ['name', 'description']
-
+# --- SUBJECT ADMIN ---
 
 class LessonInline(admin.TabularInline):
     model = Lesson
     extra = 1
 
+class TopicInline(admin.StackedInline):
+    model = Topic
+    extra = 1
+
+class SubjectClubInline(admin.TabularInline):
+    model = SubjectClub
+    extra = 1
+
+@admin.register(SubjectLevel)
+class SubjectLevelAdmin(admin.ModelAdmin):
+    list_display = ['name', 'order']
+    inlines = [SubjectClubInline]
+
+@admin.register(SubjectClub)
+class SubjectClubAdmin(admin.ModelAdmin):
+    list_display = ['name', 'level']
+    inlines = [TopicInline]
+
 @admin.register(Topic)
 class TopicAdmin(admin.ModelAdmin):
     list_display = ['title', 'club', 'order']
-    list_filter = ['club']
     inlines = [LessonInline]
 
-@admin.register(Lesson)
-class LessonAdmin(admin.ModelAdmin):
-    list_display = ['title', 'topic', 'content_type', 'order']
-    list_filter = ['topic__club', 'content_type']
+# --- SOCIAL ADMIN ---
 
-@admin.register(RoleModel)
-class RoleModelAdmin(admin.ModelAdmin):
-    list_display = ['name', 'club']
+class SocialClubInline(admin.TabularInline):
+    model = SocialClub
+    extra = 1
 
-@admin.register(PracticalApplication)
-class PracticalApplicationAdmin(admin.ModelAdmin):
-    list_display = ['title', 'club']
+class ClubDiscussionInline(admin.TabularInline):
+    model = ClubDiscussion
+    extra = 1
 
-@admin.register(ClubDiscussion)
-class ClubDiscussionAdmin(admin.ModelAdmin):
-    list_display = ['user_name', 'club', 'created_at']
-    list_filter = ['club']
+@admin.register(SocialGroup)
+class SocialGroupAdmin(admin.ModelAdmin):
+    list_display = ['name', 'icon']
+    inlines = [SocialClubInline]
 
-@admin.register(AskAIQuery)
-class AskAIQueryAdmin(admin.ModelAdmin):
-    list_display = ['query', 'club', 'created_at']
+@admin.register(SocialClub)
+class SocialClubAdmin(admin.ModelAdmin):
+    list_display = ['name', 'group', 'facilitator']
+    inlines = [ClubDiscussionInline]
+
+# --- TEACHER ADMIN ---
+
+class TeacherClubInline(admin.TabularInline):
+    model = TeacherClub
+    extra = 1
+
+@admin.register(TeacherCategory)
+class TeacherCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'is_administrative']
+    inlines = [TeacherClubInline]
+
+@admin.register(TeacherClub)
+class TeacherClubAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category']
+
+# --- MAIN & COMMON ---
+
+class SubjectLevelInline(admin.TabularInline):
+    model = SubjectLevel
+    extra = 0
+
+class SocialGroupInline(admin.TabularInline):
+    model = SocialGroup
+    extra = 0
+
+class TeacherCategoryInline(admin.TabularInline):
+    model = TeacherCategory
+    extra = 0
+
+@admin.register(MainCategory)
+class MainCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug']
+    inlines = [SubjectLevelInline, SocialGroupInline, TeacherCategoryInline]
+
+admin.site.register(RoleModel)
+admin.site.register(PracticalApplication)
+admin.site.register(AskAIQuery)
+admin.site.register(Lesson)

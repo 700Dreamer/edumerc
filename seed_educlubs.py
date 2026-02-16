@@ -4,41 +4,96 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
-from educlubs.models import MainCategory, SubCategory, Club
+from educlubs.models import (
+    MainCategory, SubjectLevel, SubjectClub, Topic, Lesson,
+    SocialGroup, SocialClub, TeacherCategory, TeacherClub
+)
 
-def seed():
-    # Clear existing
-    MainCategory.objects.all().delete()
-    SubCategory.objects.all().delete()
-    Club.objects.all().delete()
+def seed_educlubs():
+    print("Seeding heterogeneous Educlubs...")
     
     # 1. Main Categories
-    subject = MainCategory.objects.create(name="Subject Clubs", slug="subject-clubs")
-    social = MainCategory.objects.create(name="Social Clubs", slug="social-clubs")
-    teachers = MainCategory.objects.create(name="Teacher Hubs", slug="teacher-hubs")
+    subject_cat, _ = MainCategory.objects.get_or_create(name="Subject Clubs", slug="subject-clubs")
+    social_cat, _ = MainCategory.objects.get_or_create(name="Social Clubs", slug="social-clubs")
+    teacher_cat, _ = MainCategory.objects.get_or_create(name="Teacher Hubs", slug="teacher-hubs")
     
-    # 2. Sub-categories for Subject
-    levels = ["Nursery", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "S1", "S2", "S3", "S4", "S5", "S6"]
-    for i, level in enumerate(levels):
-        SubCategory.objects.create(main_category=subject, name=level, slug=level.lower(), order=i)
-
-    # 3. Sub-categories for Social
-    SubCategory.objects.create(main_category=social, name="Sports", slug="sports", order=0)
-    SubCategory.objects.create(main_category=social, name="Business", slug="business", order=1)
-    SubCategory.objects.create(main_category=social, name="Religious Clubs", slug="religious", order=2)
-
-    # 4. Sub-categories for Teachers
-    SubCategory.objects.create(main_category=teachers, name="Administrative", slug="administrative", order=0)
-    SubCategory.objects.create(main_category=teachers, name="Professional Hub", slug="professional", order=1)
-
-    # 5. Realistic Clubs for P7
-    p7 = SubCategory.objects.get(name="P7", main_category=subject)
-    Club.objects.create(name="Math Club", subcategory=p7, description="Advanced calculations and PLE prep.")
-    Club.objects.create(name="English Club", subcategory=p7, description="Grammar, debate and literature.")
-    Club.objects.create(name="Science Club", subcategory=p7, description="Experiments and natural wonders.")
-    Club.objects.create(name="Social Studies Club", subcategory=p7, description="History and geography mastery.")
-
-    print("Final seed complete!")
+    # --- SUBJECT BRANCH ---
+    levels = [
+        "Nursery", "Pre-Primary", "P1", "P2", "P3", "P4", "P5", "P6", "P7",
+        "S1", "S2", "S3", "S4", "S5", "S6"
+    ]
+    for i, level_name in enumerate(levels):
+        lvl, _ = SubjectLevel.objects.get_or_create(
+            main_category=subject_cat,
+            name=level_name,
+            slug=level_name.lower().replace(" ", "-"),
+            order=i
+        )
+        if level_name == "P7":
+            # Add some clubs
+            math, _ = SubjectClub.objects.get_or_create(
+                level=lvl,
+                name="Math Club",
+                description="Mastering primary mathematics."
+            )
+            eng, _ = SubjectClub.objects.get_or_create(
+                level=lvl,
+                name="English Club",
+                description="Grammar and literature excellence."
+            )
+            
+            # Add Topic/Lesson to Math
+            t1, _ = Topic.objects.get_or_create(club=math, title="Fractions", order=1)
+            Lesson.objects.get_or_create(topic=t1, title="Introduction to Fractions", order=1)
+            
+    # --- SOCIAL BRANCH ---
+    sports, _ = SocialGroup.objects.get_or_create(
+        main_category=social_cat,
+        name="Sports",
+        slug="sports",
+        icon="sports_soccer"
+    )
+    biz, _ = SocialGroup.objects.get_or_create(
+        main_category=social_cat,
+        name="Business",
+        slug="business",
+        icon="business"
+    )
+    
+    SocialClub.objects.get_or_create(
+        group=sports,
+        name="Football Club",
+        description="Daily training and matches.",
+        facilitator="Coach Kizito"
+    )
+    SocialClub.objects.get_or_create(
+        group=biz,
+        name="Entrepreneurs Club",
+        description="Learning small business skills.",
+        facilitator="Ms. Namubiru"
+    )
+    
+    # --- TEACHER BRANCH ---
+    admin_cat, _ = TeacherCategory.objects.get_or_create(
+        main_category=teacher_cat,
+        name="Administrative",
+        slug="administrative",
+        is_administrative=True
+    )
+    prof_cat, _ = TeacherCategory.objects.get_or_create(
+        main_category=teacher_cat,
+        name="Professional Hub",
+        slug="professional-hub"
+    )
+    
+    TeacherClub.objects.get_or_create(
+        category=admin_cat,
+        name="Headteachers Forum",
+        description="Policy discussion and school management.",
+        duration="Continuous"
+    )
+    
+    print("Seeding complete!")
 
 if __name__ == "__main__":
-    seed()
+    seed_educlubs()
