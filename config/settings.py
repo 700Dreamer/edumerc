@@ -166,8 +166,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # PesaPal V3 Production Settings
-PESAPAL_CONSUMER_KEY = 'r6GTlEzjpyEmMb7aRS8vgDG6Cpzrw5Kl'
-PESAPAL_CONSUMER_SECRET = '7r9vNvuZ34h1maUIwYW6enmCCPY='
+
+PESAPAL_CONSUMER_KEY = "your_production_key"
+PESAPAL_CONSUMER_SECRET = "your_production_secret"
+PESAPAL_IPN_ID = "91ec3822-8424-49cb-920e-dce64e841f62"
+
 
 # The URL where PesaPal will redirect the user after payment
 PESAPAL_CALLBACK_URL = 'https://1cf2-41-84-202-116.ngrok-free.app/api/v1/payments/initiate/payment-success' 

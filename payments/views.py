@@ -6,7 +6,7 @@ from django.conf import settings
 import uuid
 import logging
 
-from .models import Transaction, PesaPalIPN
+from .models import Transaction
 from .serializers import InitiatePaymentSerializer, TransactionSerializer
 from .pesapal_service import PesaPalService
 
@@ -35,22 +35,10 @@ class PaymentViewSet(viewsets.ViewSet):
             # 2. Get PesaPal Service
             pesapal = PesaPalService()
             
-            # 3. Register IPN
-            # We use build_absolute_uri to ensure the IPN works in any environment
-            ipn_url = request.build_absolute_uri('/api/v1/ipn/handler/')
-            ipn_record = PesaPalIPN.objects.filter(url=ipn_url).first()
-            if not ipn_record:
-                ipn_id = pesapal.register_ipn(ipn_url)
-                if ipn_id:
-                    ipn_record = PesaPalIPN.objects.create(ipn_id=ipn_id, url=ipn_url)
-            
-            if not ipn_record:
-                return Response({"error": "Failed to register IPN"}, status=500)
-            
-            # 4. Submit Order
+            # 3. Submit Order
             # For production, this should be your live frontend URL
-            callback_url = getattr(settings, 'PESAPAL_CALLBACK_URL', 'http://localhost:5174/payment-success')
-            order_res = pesapal.submit_order(transaction, ipn_record.ipn_id, callback_url)
+            callback_url = getattr(settings, 'PESAPAL_CALLBACK_URL', 'http://localhost:5173/payment-success')
+            order_res = pesapal.submit_order(transaction, callback_url)
             
             if order_res and 'redirect_url' in order_res:
                 transaction.order_tracking_id = order_res['order_tracking_id']

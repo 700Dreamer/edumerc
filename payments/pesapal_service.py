@@ -1,152 +1,177 @@
 import requests
-import json
 from django.conf import settings
 from django.core.cache import cache
 import logging
 
 logger = logging.getLogger(__name__)
 
-class PesaPalService:
-    def __init__(self):
-        self.debug = getattr(settings, 'DEBUG', True)
-        
-        # Automatically switch URL based on DEBUG flag
-        if self.debug:
-            # Sandbox URL
-            self.base_url = "https://pay.pesapal.com/v3"
-            logger.info("[PesaPal] Using Production Environment")
-        else:
-            # Production URL
-            self.base_url = "https://pay.pesapal.com/v3"
-            logger.info("[PesaPal] Using Production Environment")
-            
-        self.consumer_key = getattr(settings, 'PESAPAL_CONSUMER_KEY', '')
-        self.consumer_secret = getattr(settings, 'PESAPAL_CONSUMER_SECRET', '')
 
+class PesaPalService:
+    """
+    Production-ready PesaPal v3 service.
+    - Uses manual IPN registration
+    - Supports sandbox & production
+    - Caches auth tokens
+    """
+
+    def __init__(self):
+        self.debug = getattr(settings, "DEBUG", False)
+
+        # Environment URLs
+        if self.debug:
+            # Sandbox
+            self.base_url = "https://pay.pesapal.com/v3"
+            logger.info("[PesaPal] Environment: PRODUCTION")
+        else:
+            # Production
+            self.base_url = "https://pay.pesapal.com/v3"
+            logger.info("[PesaPal] Environment: PRODUCTION")
+
+        # Credentials
+        self.consumer_key = settings.PESAPAL_CONSUMER_KEY
+        self.consumer_secret = settings.PESAPAL_CONSUMER_SECRET
+
+        # Manually registered IPN ID (DO NOT re-register in production)
+        self.ipn_id = settings.PESAPAL_IPN_ID
+
+    # ------------------------------------------------------------------
+    # AUTH TOKEN
+    # ------------------------------------------------------------------
     def get_token(self):
-        """Request PesaPal Access Token and cache it."""
-        token = cache.get('pesapal_token')
+        """
+        Get and cache PesaPal access token (valid for 5 minutes).
+        """
+        token = cache.get("pesapal_token")
         if token:
             return token
 
         url = f"{self.base_url}/api/Auth/RequestToken"
         payload = {
             "consumer_key": self.consumer_key,
-            "consumer_secret": self.consumer_secret
+            "consumer_secret": self.consumer_secret,
         }
         headers = {
             "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
-        
+
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=10)
-            if response.status_code == 200:
-                token = response.json().get('token')
-                # Token expires in 5 minutes
-                cache.set('pesapal_token', token, timeout=300)
-                return token
-            else:
-                logger.error(f"[PesaPal] Token Request Failed: {response.status_code} - {response.text}")
+            response = requests.post(
+                url, json=payload, headers=headers, timeout=10
+            )
+
+            if response.status_code != 200:
+                logger.error(
+                    f"[PesaPal] Token request failed "
+                    f"{response.status_code}: {response.text}"
+                )
+                return None
+
+            token = response.json().get("token")
+            if not token:
+                logger.error("[PesaPal] Token missing in response")
+                return None
+
+            # Cache for 5 minutes
+            cache.set("pesapal_token", token, timeout=3000)
+            return token
+
         except Exception as e:
-            logger.error(f"[PesaPal] Token Request Exception: {e}")
-            
-        return None
-
-    def register_ipn(self, callback_url):
-        """Register IPN URL and return IPN_ID."""
-        # PesaPal CANNOT register localhost/127.0.0.1. 
-        # For local development, we return a dummy ID if DEBUG is True.
-        if self.debug and ("localhost" in callback_url or "127.0.0.1" in callback_url):
-            logger.info(f"[PesaPal] Localhost detected. Returning dummy IPN ID for development.")
-            return "local_dev_ipn_id_99999"
-
-        token = self.get_token()
-        if not token: 
+            logger.exception(f"[PesaPal] Token request exception: {e}")
             return None
 
-        url = f"{self.base_url}/api/URLRegister/RegisterIPN"
-        payload = {
-            "url": callback_url,
-            "ipn_notification_type": "GET"
-        }
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=10)
-            if response.status_code == 200:
-                return response.json().get('ipn_id')
-            elif response.status_code == 401:
-                # Unauthorized - clear cache and return None so next try fetches new token
-                cache.delete('pesapal_token')
-                logger.error("[PesaPal] IPN Registration 401: Cleared token cache.")
-            else:
-                logger.error(f"[PesaPal] IPN Registration Failed: {response.status_code} - {response.text}")
-        except Exception as e:
-            logger.error(f"[PesaPal] IPN Registration Exception: {e}")
-        
-        return None
-
-    def submit_order(self, transaction, ipn_id, callback_url):
-        """Submit order and return redirect_url."""
+    # ------------------------------------------------------------------
+    # SUBMIT ORDER
+    # ------------------------------------------------------------------
+    def submit_order(self, transaction, callback_url):
+        """
+        Submit a payment order and return redirect URL.
+        """
         token = self.get_token()
-        if not token: return None
+        if not token:
+            return None
 
         url = f"{self.base_url}/api/Transactions/SubmitOrderRequest"
+
         payload = {
             "id": str(transaction.merchant_reference),
-            "currency": transaction.currency,
-            "amount": float(transaction.amount),
+            "currency": "UGX",
+            "amount": int(transaction.amount),  # UGX must be integer
             "description": transaction.description,
             "callback_url": callback_url,
-            "notification_id": ipn_id,
+            "notification_id": self.ipn_id,
             "billing_address": {
-                "email_address": transaction.user.email or "guest@edumerk.com",
-                "phone_number": "",
+                "email_address": transaction.user.email,
                 "country_code": "UG",
                 "first_name": transaction.user.username,
                 "last_name": "User",
-                "line_1": "Kampala",
-                "city": "Kampala"
-            }
+            },
         }
+
         headers = {
             "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
             "Content-Type": "application/json",
-            "Accept": "application/json"
         }
+
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=10)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                logger.error(f"[PesaPal] Order Submission Failed: {response.status_code} - {response.text}")
+            response = requests.post(
+                url, json=payload, headers=headers, timeout=10
+            )
+
+            if response.status_code != 200:
+                logger.error(
+                    f"[PesaPal] SubmitOrder failed "
+                    f"{response.status_code}: {response.text}"
+                )
+                return None
+
+            data = response.json()
+
+            # Must contain redirect_url
+            if "redirect_url" not in data:
+                logger.error(f"[PesaPal] Invalid submit response: {data}")
+                return None
+
+            return data
+
         except Exception as e:
-            logger.error(f"[PesaPal] Order Submission Error: {e}")
-            
-        return None
+            logger.exception(f"[PesaPal] SubmitOrder exception: {e}")
+            return None
 
+    # ------------------------------------------------------------------
+    # VERIFY TRANSACTION
+    # ------------------------------------------------------------------
     def get_transaction_status(self, order_tracking_id):
-        """Verify transaction status live."""
+        """
+        Verify transaction status from PesaPal.
+        """
         token = self.get_token()
-        if not token: return None
+        if not token:
+            return None
 
-        url = f"{self.base_url}/api/Transactions/GetTransactionStatus?orderTrackingId={order_tracking_id}"
+        url = (
+            f"{self.base_url}/api/Transactions/GetTransactionStatus"
+            f"?orderTrackingId={order_tracking_id}"
+        )
+
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
+            "Accept": "application/json",
         }
+
         try:
             response = requests.get(url, headers=headers, timeout=10)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                logger.error(f"[PesaPal] Status Check Failed: {response.status_code} - {response.text}")
+
+            if response.status_code != 200:
+                logger.error(
+                    f"[PesaPal] Status check failed "
+                    f"{response.status_code}: {response.text}"
+                )
+                return None
+
+            return response.json()
+
         except Exception as e:
-            logger.error(f"[PesaPal] Status Check Error: {e}")
-        
-        return None
+            logger.exception(f"[PesaPal] Status check exception: {e}")
+            return None
