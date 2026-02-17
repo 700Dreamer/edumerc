@@ -4,7 +4,7 @@ from .views import CategoryViewSet, ProductViewSet, CartViewSet, OrderViewSet, B
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet)
-router.register(r'products', ProductViewSet)
+router.register(r'products', ProductViewSet, basename='product')
 router.register(r'cart', CartViewSet, basename='cart')
 router.register(r'orders', OrderViewSet, basename='order')
 router.register(r'bundles', BundleViewSet, basename='bundle')
