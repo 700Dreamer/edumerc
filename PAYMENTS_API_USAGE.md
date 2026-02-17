@@ -47,6 +47,8 @@ Checkout from cart: reads user's Cart, creates Order, and initiates payment in o
 *   **Error Responses**:
     - `400 Bad Request`: `{"error": "Cart is empty"}` or `{"error": "Cart not found"}`
 
+> **Note**: The cart is **NOT** cleared immediately. It will only be cleared when PesaPal confirms the payment was successful via the IPN callback. If payment fails, the cart remains intact so the user can retry.
+
 ### 3. List Transactions
 Retrieve a history of all payments made by the authenticated user.
 

@@ -113,12 +113,6 @@ class PaymentViewSet(viewsets.ViewSet):
         order_res = pesapal.submit_order(transaction, callback_url)
         
         if order_res and 'redirect_url' in order_res:
-            transaction.order_tracking_id = order_res['order_tracking_id']
-            transaction.save()
-            
-            # 8. Clear cart after successful order creation
-            cart.items.all().delete()
-            
             return Response({
                 "total": float(total),
                 "redirect_url": order_res['redirect_url'],
@@ -153,6 +147,15 @@ class PesaPalIPNViewSet(viewsets.ViewSet):
                     # 1: Completed, 0: Failed, 2: Reversed
                     if status_res['status_code'] == 1:
                         transaction.status = 'COMPLETED'
+                        
+                        # Clear user's cart on successful payment
+                        try:
+                            cart = transaction.user.cart
+                            cart.items.all().delete()
+                            logger.info(f"Cart cleared for user {transaction.user.username} after successful payment")
+                        except Exception as e:
+                            logger.warning(f"Could not clear cart for user {transaction.user.username}: {e}")
+                            
                     elif status_res['status_code'] == 0:
                         transaction.status = 'FAILED'
                     elif status_res['status_code'] == 2:
