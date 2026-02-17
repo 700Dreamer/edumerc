@@ -8,6 +8,7 @@ class Transaction(models.Model):
         ('COMPLETED', 'Completed'),
         ('FAILED', 'Failed'),
         ('REVERSED', 'Reversed'),
+        ('INVALID', 'Invalid'),
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

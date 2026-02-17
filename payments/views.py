@@ -113,6 +113,9 @@ class PaymentViewSet(viewsets.ViewSet):
         order_res = pesapal.submit_order(transaction, callback_url)
         
         if order_res and 'redirect_url' in order_res:
+            transaction.order_tracking_id = order_res['order_tracking_id']
+            transaction.save()
+            
             return Response({
                 "total": float(total),
                 "redirect_url": order_res['redirect_url'],
@@ -144,7 +147,7 @@ class PesaPalIPNViewSet(viewsets.ViewSet):
                     transaction = Transaction.objects.get(order_tracking_id=tracking_id)
                     
                     # Map PesaPal status to local status
-                    # 1: Completed, 0: Failed, 2: Reversed
+                    # PesaPal V3 status codes: 0=INVALID, 1=COMPLETED, 2=FAILED, 3=REVERSED
                     if status_res['status_code'] == 1:
                         transaction.status = 'COMPLETED'
                         
@@ -156,10 +159,13 @@ class PesaPalIPNViewSet(viewsets.ViewSet):
                         except Exception as e:
                             logger.warning(f"Could not clear cart for user {transaction.user.username}: {e}")
                             
-                    elif status_res['status_code'] == 0:
-                        transaction.status = 'FAILED'
                     elif status_res['status_code'] == 2:
+                        transaction.status = 'FAILED'
+                    elif status_res['status_code'] == 3:
                         transaction.status = 'REVERSED'
+                    elif status_res['status_code'] == 0:
+                        transaction.status = 'INVALID'
+                        logger.warning(f"Transaction {tracking_id} marked as INVALID by PesaPal")
                     
                     transaction.payment_method = status_res.get('payment_method', '')
                     transaction.save()

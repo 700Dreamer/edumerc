@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import User, Profile
-from edushop.models import Cart, CartItem, Wishlist, Order, OrderItem
+from django import forms
+from edushop.models import Cart, CartItem, Wishlist, Order, OrderItem, Product
 from payments.models import Transaction
 
 # Inlines
@@ -16,12 +17,52 @@ class CartItemInline(admin.TabularInline):
     readonly_fields = ['product', 'quantity']
 
 
+class CartAdminForm(forms.ModelForm):
+    quick_add_product = forms.ModelChoiceField(
+        queryset=Product.objects.filter(is_active=True),
+        required=False,
+        label="Quick Add Product",
+        help_text="Select a product to add to this cart"
+    )
+    quick_add_quantity = forms.IntegerField(
+        initial=1,
+        min_value=1,
+        required=False,
+        label="Quantity"
+    )
+
+    class Meta:
+        model = Cart
+        fields = '__all__'
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+            
+        # Handle quick add
+        product = self.cleaned_data.get('quick_add_product')
+        quantity = self.cleaned_data.get('quick_add_quantity')
+        
+        if product and quantity:
+            # Check if item exists
+            item, created = CartItem.objects.get_or_create(
+                cart=instance,
+                product=product,
+                defaults={'quantity': 0}
+            )
+            item.quantity += quantity
+            item.save()
+            
+        return instance
+
 class CartInline(admin.StackedInline):
     model = Cart
+    form = CartAdminForm
     can_delete = False
     show_change_link = True
     verbose_name_plural = 'Cart'
-    fields = ['created_at']
+    fields = ['created_at', 'quick_add_product', 'quick_add_quantity']
     readonly_fields = ['created_at']
 
 
