@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 class PaymentViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     
+    def list(self, request):
+        """List current user's transactions"""
+        transactions = Transaction.objects.filter(user=request.user).order_by('-created_at')
+        serializer = TransactionSerializer(transactions, many=True)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['post'], url_path='initiate')
     def initiate(self, request):
         serializer = InitiatePaymentSerializer(data=request.data)
@@ -54,7 +60,7 @@ class PaymentViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=400)
 
 class PesaPalIPNViewSet(viewsets.ViewSet):
-    permission_classes = [AllowAny]
+    # permission_classes = [AllowAny]
     
     @action(detail=False, methods=['get'], url_path='handler')
     def handler(self, request):
