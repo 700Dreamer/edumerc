@@ -28,7 +28,26 @@ Starts a new payment process and returns a PesaPal redirect URL.
     }
     ```
 
-### 2. List Transactions
+### 2. Cart Checkout & Initiate Payment
+Checkout from cart: reads user's Cart, creates Order, and initiates payment in one step.
+
+*   **URL**: `POST /api/v1/payments/cart_checkout/initiate/`
+*   **Authentication**: Required (JWT)
+*   **Request Body**: `{}` (empty - cart is read from database)
+*   **Success Response** (200 OK):
+    ```json
+    {
+        "total": 50000.00,
+        "redirect_url": "https://pay.pesapal.com/v3/...",
+        "merchant_reference": "EDM-XXXXXX",
+        "order_tracking_id": "uuid-tracking-id",
+        "order_id": 5
+    }
+    ```
+*   **Error Responses**:
+    - `400 Bad Request`: `{"error": "Cart is empty"}` or `{"error": "Cart not found"}`
+
+### 3. List Transactions
 Retrieve a history of all payments made by the authenticated user.
 
 *   **URL**: `GET /api/v1/payments/`
@@ -47,7 +66,7 @@ Retrieve a history of all payments made by the authenticated user.
     ]
     ```
 
-### 3. IPN Handler (Internal)
+### 4. IPN Handler (Internal)
 Used by PesaPal to notify the server of status changes.
 
 *   **URL**: `GET /api/v1/ipn/handler/`

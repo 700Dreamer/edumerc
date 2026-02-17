@@ -7,8 +7,9 @@ import uuid
 import logging
 
 from .models import Transaction
-from .serializers import InitiatePaymentSerializer, TransactionSerializer
+from .serializers import InitiatePaymentSerializer, TransactionSerializer, CartCheckoutSerializer
 from .pesapal_service import PesaPalService
+from edushop.models import Order, OrderItem, Product
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,75 @@ class PaymentViewSet(viewsets.ViewSet):
             return Response({"error": "Failed to initiate payment with PesaPal"}, status=500)
         
         return Response(serializer.errors, status=400)
+
+    @action(detail=False, methods=['post'], url_path='cart_checkout/initiate')
+    def cart_checkout_initiate(self, request):
+        """
+        Checkout from cart: reads user's Cart, creates Order, and initiates payment.
+        No request body needed - cart is read from database.
+        """
+        # 1. Get user's cart
+        try:
+            cart = request.user.cart
+        except:
+            return Response({"error": "Cart not found"}, status=400)
+        
+        # 2. Validate cart has items
+        cart_items = cart.items.all()
+        if not cart_items.exists():
+            return Response({"error": "Cart is empty"}, status=400)
+        
+        # 3. Calculate total from current product prices
+        total = sum(item.product.price * item.quantity for item in cart_items)
+        
+        # 4. Create Transaction
+        merchant_ref = f"EDM-{uuid.uuid4().hex[:8].upper()}"
+        transaction = Transaction.objects.create(
+            user=request.user,
+            amount=total,
+            description=f"Cart Checkout - {cart_items.count()} items",
+            merchant_reference=merchant_ref,
+            status='PENDING'
+        )
+        
+        # 5. Create Order
+        order = Order.objects.create(
+            user=request.user,
+            total_price=total,
+            status='Pending',
+            transaction=transaction
+        )
+        
+        # 6. Create OrderItems from CartItems
+        for cart_item in cart_items:
+            OrderItem.objects.create(
+                order=order,
+                product=cart_item.product,
+                quantity=cart_item.quantity,
+                price=cart_item.product.price  # Use current price
+            )
+        
+        # 7. Initiate PesaPal Payment
+        pesapal = PesaPalService()
+        callback_url = getattr(settings, 'PESAPAL_CALLBACK_URL', 'http://localhost:5173/payment-success')
+        order_res = pesapal.submit_order(transaction, callback_url)
+        
+        if order_res and 'redirect_url' in order_res:
+            transaction.order_tracking_id = order_res['order_tracking_id']
+            transaction.save()
+            
+            # 8. Clear cart after successful order creation
+            cart.items.all().delete()
+            
+            return Response({
+                "total": float(total),
+                "redirect_url": order_res['redirect_url'],
+                "merchant_reference": merchant_ref,
+                "order_tracking_id": order_res['order_tracking_id'],
+                "order_id": order.id
+            })
+        
+        return Response({"error": "Failed to initiate payment with PesaPal"}, status=500)
 
 class PesaPalIPNViewSet(viewsets.ViewSet):
     # permission_classes = [AllowAny]
