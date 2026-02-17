@@ -14,9 +14,21 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ['title', 'description', 'sku', 'author']
     prepopulated_fields = {}
 
+
+class CartItemInline(admin.TabularInline):
+    model = CartItem
+    extra = 0
+    fields = ['product', 'quantity']
+    readonly_fields = ['product', 'quantity']
+
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
-    list_display = ['user', 'created_at']
+    list_display = ['user', 'created_at', 'item_count']
+    inlines = [CartItemInline]
+    
+    def item_count(self, obj):
+        return obj.items.count()
+    item_count.short_description = 'Items'
 
 @admin.register(CartItem)
 class CartItemAdmin(admin.ModelAdmin):

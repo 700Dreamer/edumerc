@@ -15,11 +15,17 @@ class CartItemInline(admin.TabularInline):
     extra = 0
     readonly_fields = ['product', 'quantity']
 
+
 class CartInline(admin.StackedInline):
     model = Cart
     can_delete = False
     show_change_link = True
     verbose_name_plural = 'Cart'
+    fields = ['created_at']
+    readonly_fields = ['created_at']
+
+
+
 
 class WishlistInline(admin.StackedInline):
     model = Wishlist
