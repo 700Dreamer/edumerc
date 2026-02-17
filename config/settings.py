@@ -167,9 +167,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # PesaPal V3 Production Settings
 
-PESAPAL_CONSUMER_KEY = "r6GTlEzjpyEmMb7aRS8vgDG6Cpzrw5Kl"
-PESAPAL_CONSUMER_SECRET = "7r9vNvuZ34h1maUIwYW6enmCCPY="
-PESAPAL_IPN_ID = "fdbde910-3285-4cff-bb93-dab8ee6a2af9"
+PESAPAL_CONSUMER_KEY = "7wmnV5XyjVMs3OHMPuiu1xpwtDCC4IVi"
+PESAPAL_CONSUMER_SECRET = "16T/O+dQAAGiTWhkaOTlfsH1r0w="
+PESAPAL_IPN_ID = "b8dab8c6-23a6-4989-9602-dab89a2bc831"
 
 
 # The URL where PesaPal will redirect the user after payment

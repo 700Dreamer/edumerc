@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Product, Cart, CartItem, Order, OrderItem, Bundle
+from .models import Category, Product, Cart, CartItem, Order, OrderItem, Bundle, Wishlist
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -24,8 +24,9 @@ class CartItemAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['id', 'user', 'total_price', 'status', 'created_at']
+    list_display = ['id', 'user', 'total_price', 'status', 'transaction', 'created_at']
     list_filter = ['status']
+    raw_id_fields = ['transaction']
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
@@ -34,3 +35,8 @@ class OrderItemAdmin(admin.ModelAdmin):
 @admin.register(Bundle)
 class BundleAdmin(admin.ModelAdmin):
     list_display = ['title', 'price', 'is_active']
+
+@admin.register(Wishlist)
+class WishlistAdmin(admin.ModelAdmin):
+    list_display = ['user', 'updated_at']
+    filter_horizontal = ['products']

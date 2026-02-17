@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Profile
+from edushop.serializers import CartSerializer, WishlistSerializer, OrderSerializer
 
 User = get_user_model()
 
@@ -12,10 +13,13 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer(read_only=True)
+    cart = CartSerializer(read_only=True)
+    wishlist = WishlistSerializer(read_only=True)
+    orders = OrderSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'role', 'profile']
+        fields = ['id', 'username', 'email', 'role', 'profile', 'cart', 'wishlist', 'orders']
         read_only_fields = ['id']
 
 class RegisterSerializer(serializers.ModelSerializer):

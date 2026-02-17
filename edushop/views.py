@@ -1,7 +1,7 @@
-from .models import Category, Product, Cart, CartItem, Order, OrderItem, Bundle
+from .models import Category, Product, Cart, CartItem, Order, OrderItem, Bundle, Wishlist
 from .serializers import (
     CategorySerializer, ProductSerializer, CartSerializer, 
-    CartItemSerializer, OrderSerializer, BundleSerializer
+    CartItemSerializer, OrderSerializer, BundleSerializer, WishlistSerializer
 )
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
@@ -65,3 +65,32 @@ class OrderViewSet(viewsets.ModelViewSet):
 class BundleViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Bundle.objects.all()
     serializer_class = BundleSerializer
+
+class WishlistViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = WishlistSerializer
+
+    def get_queryset(self):
+        wishlist, created = Wishlist.objects.get_or_create(user=self.request.user)
+        return Wishlist.objects.filter(id=wishlist.id)
+
+    @action(detail=False, methods=['post'])
+    def toggle_item(self, request):
+        wishlist, created = Wishlist.objects.get_or_create(user=request.user)
+        product_id = request.data.get('product_id')
+        
+        try:
+            product = Product.objects.get(id=product_id)
+            if product in wishlist.products.all():
+                wishlist.products.remove(product)
+                message = "Removed from wishlist"
+            else:
+                wishlist.products.add(product)
+                message = "Added to wishlist"
+            
+            return Response({
+                "message": message,
+                "wishlist": WishlistSerializer(wishlist).data
+            })
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=400)

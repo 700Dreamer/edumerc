@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Category, Product, Cart, CartItem, Order, OrderItem, Bundle
+from .models import Category, Product, Cart, CartItem, Order, OrderItem, Bundle, Wishlist
+from payments.serializers import TransactionSerializer
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -40,10 +41,11 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    transaction_details = TransactionSerializer(source='transaction', read_only=True)
 
     class Meta:
         model = Order
-        fields = ['id', 'total_price', 'status', 'items', 'created_at']
+        fields = ['id', 'total_price', 'status', 'items', 'transaction', 'transaction_details', 'created_at']
 
 class BundleSerializer(serializers.ModelSerializer):
     products = ProductSerializer(many=True, read_only=True)
@@ -51,3 +53,10 @@ class BundleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bundle
         fields = ['id', 'title', 'description', 'products', 'price', 'image', 'is_active']
+
+class WishlistSerializer(serializers.ModelSerializer):
+    products_details = ProductSerializer(source='products', many=True, read_only=True)
+
+    class Meta:
+        model = Wishlist
+        fields = ['id', 'products', 'products_details', 'updated_at']
