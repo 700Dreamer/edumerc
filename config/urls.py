@@ -30,6 +30,7 @@ urlpatterns = [
     path('api/v1/schools/', include('edupedia.urls')),
     path('api/v1/fundme/', include('edufundme.urls')),
     path('api/v1/quest/', include('eduquest.urls')),
+    path('api/v1/coach/', include('educoach.urls')),
 
 ]
 

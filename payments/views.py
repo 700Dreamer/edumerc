@@ -170,6 +170,16 @@ class PesaPalIPNViewSet(viewsets.ViewSet):
                     transaction.payment_method = status_res.get('payment_method', '')
                     transaction.save()
                     
+                    # Update linked orders
+                    if transaction.orders.exists():
+                        for order in transaction.orders.all():
+                            if transaction.status == 'COMPLETED':
+                                order.status = 'Paid'
+                            elif transaction.status in ['FAILED', 'REVERSED', 'INVALID']:
+                                order.status = 'Cancelled'
+                            order.save()
+                            logger.info(f"Order {order.id} status updated to {order.status}")
+                    
                     logger.info(f"Transaction {tracking_id} updated to {transaction.status}")
                     
                 except Transaction.DoesNotExist:
