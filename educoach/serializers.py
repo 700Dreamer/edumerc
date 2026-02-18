@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment
+from django.db import transaction
 
 class CoachListSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
@@ -22,6 +23,31 @@ class CoachListSerializer(serializers.ModelSerializer):
         if hasattr(obj.user, 'profile') and obj.user.profile.avatar:
             return obj.user.profile.avatar.url
         return None
+
+class CoachPromotionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Coach
+        fields = [
+            'title', 'experience', 'price_per_hour', 
+            'description', 'subjects', 'levels', 'badges'
+        ]
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        
+        with transaction.atomic():
+            # Update user role to TEACHER if not already
+            if user.role != 'TEACHER':
+                user.role = 'TEACHER'
+                user.save()
+            
+            # Create or update Coach profile
+            coach, created = Coach.objects.update_or_create(
+                user=user,
+                defaults=validated_data
+            )
+            
+        return coach
 
 class CoachDetailSerializer(CoachListSerializer):
     pass

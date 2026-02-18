@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
@@ -6,7 +6,7 @@ from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment
 from .serializers import (
     CoachListSerializer, CoachDetailSerializer, 
     SessionSerializer, VirtualClassSerializer, 
-    ClassEnrollmentSerializer
+    ClassEnrollmentSerializer, CoachPromotionSerializer
 )
 
 class CoachViewSet(viewsets.ReadOnlyModelViewSet):
@@ -17,6 +17,16 @@ class CoachViewSet(viewsets.ReadOnlyModelViewSet):
         if self.action == 'retrieve':
             return CoachDetailSerializer
         return super().get_serializer_class()
+
+class PromoteCoachView(generics.CreateAPIView):
+    """
+    Endpoint to promote the logged-in user to a Coach/Tutor.
+    """
+    serializer_class = CoachPromotionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save()
 
 class SessionViewSet(viewsets.ModelViewSet):
     serializer_class = SessionSerializer
