@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 
 class Coach(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='coach_profile')
@@ -90,3 +92,25 @@ class ClassEnrollment(models.Model):
 
     def __str__(self):
         return f"{self.student} in {self.virtual_class}"
+
+
+# ---------------------------------------------------------------------------
+# Signals: keep user.is_coach in sync with the Coach profile
+# ---------------------------------------------------------------------------
+
+@receiver(post_save, sender=Coach)
+def sync_is_coach_on_save(sender, instance, created, **kwargs):
+    """Set user.is_coach = True whenever a Coach profile is created or saved."""
+    user = instance.user
+    if not user.is_coach:
+        user.is_coach = True
+        user.save(update_fields=['is_coach'])
+
+
+@receiver(post_delete, sender=Coach)
+def sync_is_coach_on_delete(sender, instance, **kwargs):
+    """Reset user.is_coach = False when the Coach profile is deleted."""
+    user = instance.user
+    if user.is_coach:
+        user.is_coach = False
+        user.save(update_fields=['is_coach'])

@@ -70,6 +70,49 @@ class SessionSerializer(serializers.ModelSerializer):
     def get_booking_id(self, obj):
         return f"BK-{obj.id}"
 
+
+class CoachSessionSerializer(serializers.ModelSerializer):
+    """Session view from the coach's perspective — shows student details."""
+    booking_id = serializers.SerializerMethodField(read_only=True)
+    student_name = serializers.SerializerMethodField(read_only=True)
+    student_email = serializers.EmailField(source='student.email', read_only=True)
+
+    class Meta:
+        model = CoachingSession
+        fields = [
+            'booking_id', 'status', 'student_name', 'student_email',
+            'date', 'time', 'duration', 'total_price',
+            'meeting_link', 'note', 'created_at',
+        ]
+        read_only_fields = fields
+
+    def get_booking_id(self, obj):
+        return f"BK-{obj.id}"
+
+    def get_student_name(self, obj):
+        return obj.student.get_full_name() or obj.student.username
+
+
+class SessionStatusUpdateSerializer(serializers.ModelSerializer):
+    """Allows a coach to transition a session status."""
+    ALLOWED_STATUSES = ['confirmed', 'cancelled', 'completed']
+
+    status = serializers.ChoiceField(choices=ALLOWED_STATUSES)
+    meeting_link = serializers.URLField(required=False, allow_blank=True)
+
+    class Meta:
+        model = CoachingSession
+        fields = ['status', 'meeting_link']
+
+    def validate_status(self, value):
+        instance = self.instance
+        # Cannot change a session that is already cancelled or completed
+        if instance and instance.status in ('cancelled', 'completed'):
+            raise serializers.ValidationError(
+                f"Cannot update a session that is already '{instance.status}'."
+            )
+        return value
+
 class VirtualClassSerializer(serializers.ModelSerializer):
     teacher_name = serializers.CharField(source='coach.user.get_full_name', read_only=True)
     enrolled_count = serializers.IntegerField(read_only=True)

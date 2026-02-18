@@ -90,13 +90,13 @@ class OrderInline(admin.TabularInline):
 
 # User admin
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'role', 'is_staff')
-    list_filter = ('role', 'is_staff', 'is_superuser')
+    list_display = ('username', 'email', 'role', 'is_staff', 'is_coach')
+    list_filter = ('role', 'is_staff', 'is_coach', 'is_superuser')
     fieldsets = UserAdmin.fieldsets + (
-        (None, {'fields': ('role',)}),
+        ('Role & Coach Status', {'fields': ('role', 'is_coach')}),
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
-        (None, {'fields': ('role',)}),
+        ('Role & Coach Status', {'fields': ('role',)}),
     )
     inlines = [ProfileInline, CartInline, WishlistInline, OrderInline, TransactionInline]
 

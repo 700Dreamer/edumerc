@@ -5,8 +5,8 @@ from django.shortcuts import get_object_or_404
 from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment
 from .serializers import (
     CoachListSerializer, CoachDetailSerializer, 
-    SessionSerializer, VirtualClassSerializer, 
-    ClassEnrollmentSerializer, CoachPromotionSerializer
+    SessionSerializer, CoachSessionSerializer, SessionStatusUpdateSerializer,
+    VirtualClassSerializer, ClassEnrollmentSerializer, CoachPromotionSerializer
 )
 
 class CoachViewSet(viewsets.ReadOnlyModelViewSet):
@@ -54,9 +54,56 @@ class SessionViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='my-bookings')
     def my_bookings(self, request):
-        queryset = self.get_queryset()
+        """Student: list all sessions booked by the logged-in user."""
+        queryset = CoachingSession.objects.filter(student=request.user)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='my-appointments')
+    def my_appointments(self, request):
+        """
+        Coach: list all sessions booked against the logged-in coach.
+        Only accessible if the user has a coach profile.
+        """
+        if not request.user.is_coach:
+            return Response(
+                {"detail": "Only coaches can view appointments."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        try:
+            coach = request.user.coach_profile
+        except Coach.DoesNotExist:
+            return Response(
+                {"detail": "Coach profile not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        queryset = CoachingSession.objects.filter(coach=coach).order_by('-date', '-time')
+        serializer = CoachSessionSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['patch'], url_path='update-status')
+    def update_status(self, request, pk=None):
+        """
+        Coach: update the status of a specific booking.
+        Allowed transitions: pending -> confirmed / cancelled
+                             confirmed -> completed / cancelled
+        """
+        if not request.user.is_coach:
+            return Response(
+                {"detail": "Only coaches can update session status."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        session = get_object_or_404(CoachingSession, pk=pk, coach=request.user.coach_profile)
+        serializer = SessionStatusUpdateSerializer(
+            session, data=request.data, partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            # Return the full coach view of the updated session
+            return Response(
+                CoachSessionSerializer(session, context={'request': request}).data
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class VirtualClassViewSet(viewsets.ModelViewSet):
     queryset = VirtualClass.objects.all()
