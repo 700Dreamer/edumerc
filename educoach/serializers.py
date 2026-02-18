@@ -36,10 +36,11 @@ class CoachPromotionSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         
         with transaction.atomic():
-            # Update user role to TEACHER if not already
+            # Update user role to TEACHER and flag as coach
             if user.role != 'TEACHER':
                 user.role = 'TEACHER'
-                user.save()
+            user.is_coach = True
+            user.save()
             
             # Create or update Coach profile
             coach, created = Coach.objects.update_or_create(

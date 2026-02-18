@@ -13,6 +13,7 @@ class User(AbstractUser):
     )
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='STUDENT')
+    is_coach = models.BooleanField(default=False, help_text="Set to True when a teacher is promoted to a coach/tutor.")
 
     def __str__(self):
         return f"{self.username} ({self.role})"
