@@ -43,7 +43,7 @@ class CoachingSession(models.Model):
     note = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
-    meeting_link = models.URLField(blank=True, null=True)
+    meeting_link = models.CharField(blank=True, null=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -114,3 +114,4 @@ def sync_is_coach_on_delete(sender, instance, **kwargs):
     if user.is_coach:
         user.is_coach = False
         user.save(update_fields=['is_coach'])
+# update
