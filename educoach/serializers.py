@@ -98,7 +98,7 @@ class SessionStatusUpdateSerializer(serializers.ModelSerializer):
     ALLOWED_STATUSES = ['confirmed', 'cancelled', 'completed']
 
     status = serializers.ChoiceField(choices=ALLOWED_STATUSES)
-    meeting_link = serializers.URLField(required=False, allow_blank=True)
+    meeting_link = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = CoachingSession
