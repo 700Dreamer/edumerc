@@ -14,7 +14,7 @@ def session_notification_signal(sender, instance, created, **kwargs):
             f"Hello {instance.coach.user.get_full_name() or instance.coach.user.username},\n\n"
             f"A student ({instance.student.get_full_name() or instance.student.username}) has booked a session with you.\n"
             f"Date: {instance.date}\n"
-            f"Time: {instance.time}\n\n"
+            f"Time: {instance.start_time}\n\n"
             f"Please log in to confirm the booking."
         )
         gmail.send_email(instance.coach.user.email, subject, body)
