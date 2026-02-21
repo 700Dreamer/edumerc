@@ -28,7 +28,7 @@ def session_notification_signal(sender, instance, created, **kwargs):
                 f"Hello {instance.student.get_full_name() or instance.student.username},\n\n"
                 f"Your booking with {instance.coach.user.get_full_name() or instance.coach.user.username} has been confirmed.\n"
                 f"Date: {instance.date}\n"
-                f"Time: {instance.start}\n"
+                f"Time: {instance.start_time}\n"
                 f"Meeting Link: {instance.meeting_link or 'N/A'}\n\n"
                 f"See you then!"
             )
