@@ -223,3 +223,28 @@ Update an appointment's status (e.g., accept the booking and provide a meeting l
   "note": "Help required with advanced mathematics."
 }
 ```
+
+---
+
+## 5. Earnings Dashboard (For Coaches)
+Coaches can track their revenue performance including completed, pending, and cashed-out amounts.
+
+### `GET /api/v1/coach/tutors/earnings/`
+Fetch the logged-in coach's financial summary.
+- **Auth:** `TEACHER` (Requires an active `Coach` profile).
+
+**Response (200 OK):**
+```json
+{
+  "demanding_amount": 150000.0,
+  "expecting_amount": 45000.0,
+  "withdrawn_amount": 30000.0,
+  "currency": "UGX"
+}
+```
+
+**Field Descriptions:**
+- `demanding_amount`: Revenue from sessions that have been successfully marked as **Completed**.
+- `expecting_amount`: Revenue from sessions marked as **Confirmed** that are scheduled for the future.
+- `withdrawn_amount`: The total sum of all cash-outs marked as **Completed** in the withdrawal history.
+
