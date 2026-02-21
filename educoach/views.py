@@ -1,13 +1,21 @@
 from rest_framework import viewsets, status, permissions, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment
+from django.db import transaction
+from django.contrib.auth import get_user_model
+from datetime import datetime, timedelta
+
+from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange
 from .serializers import (
     CoachListSerializer, CoachDetailSerializer, 
     SessionSerializer, CoachSessionSerializer, SessionStatusUpdateSerializer,
-    VirtualClassSerializer, ClassEnrollmentSerializer, CoachPromotionSerializer
+    VirtualClassSerializer, ClassEnrollmentSerializer, CoachPromotionSerializer,
+    WeeklyAvailabilitySerializer
 )
+
+User = get_user_model()
 
 class CoachViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Coach.objects.all()
@@ -38,19 +46,78 @@ class SessionViewSet(viewsets.ModelViewSet):
             return CoachingSession.objects.filter(coach=user.coach_profile)
         return CoachingSession.objects.filter(student=user)
 
-    def perform_create(self, serializer):
-        coach_id = serializer.validated_data.pop('tutor_id')
-        coach = get_object_or_404(Coach, id=coach_id)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         
-        # Calculate price
+        tutor_id = serializer.validated_data.pop('tutor_id', None)
+        date_obj = serializer.validated_data.get('date')
+        start_time = serializer.validated_data.get('start_time')
         duration = serializer.validated_data.get('duration', 1)
-        total_price = coach.price_per_hour * duration
         
-        serializer.save(
-            student=self.request.user,
-            coach=coach,
-            total_price=total_price
-        )
+        if date_obj < datetime.now().date():
+            return Response({"error": "INVALID_DATE", "detail": "Date cannot be in the past."}, status=status.HTTP_400_BAD_REQUEST)
+
+        start_dt = datetime.combine(date_obj, start_time)
+        end_dt = start_dt + timedelta(hours=duration)
+        end_time = end_dt.time()
+        
+        try:
+            with transaction.atomic():
+                # Lock the coach user row to prevent concurrent bookings
+                coach_user = User.objects.select_for_update().get(coach_profile__id=tutor_id)
+                coach = coach_user.coach_profile
+                
+                # Double booking check
+                overlapping_sessions = CoachingSession.objects.filter(
+                    coach=coach,
+                    date=date_obj,
+                    status__in=['pending', 'confirmed'],
+                    start_time__lt=end_time,
+                    end_time__gt=start_time
+                )
+                
+                if overlapping_sessions.exists():
+                    return Response({
+                        "error": "SLOT_UNAVAILABLE",
+                        "detail": f"The selected slot ({start_time.strftime('%H:%M')} on {date_obj}) is no longer available. Please choose a different time."
+                    }, status=status.HTTP_409_CONFLICT)
+                    
+                # Verify slot falls within active ranges
+                dow = (date_obj.weekday() + 1) % 7
+                active_ranges = CoachAvailabilityRange.objects.filter(coach=coach, day_of_week=dow, is_active=True)
+                
+                is_within_range = False
+                for r in active_ranges:
+                    if r.start_time <= start_time and r.end_time >= end_time:
+                        is_within_range = True
+                        break
+                        
+                if not is_within_range:
+                    return Response({
+                        "error": "DURATION_EXCEEDS_RANGE",
+                        "detail": "Booking duration overflows coach's available range."
+                    }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+                    
+                # TODO: Implement wallet deduction logic here when Wallet model is available
+                # current_balance = request.user.wallet.balance
+                # required = coach.price_per_hour * duration
+                # if current_balance < required:
+                #     return Response({"error": "INSUFFICIENT_BALANCE", ...}, status=402)
+                
+                total_price = coach.price_per_hour * duration
+                
+                session = serializer.save(
+                    student=request.user,
+                    coach=coach,
+                    total_price=total_price
+                )
+                
+                headers = self.get_success_headers(serializer.data)
+                return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+                
+        except User.DoesNotExist:
+            return Response({"error": "COACH_NOT_FOUND", "detail": "No active coach with this ID."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['get'], url_path='my-bookings')
     def my_bookings(self, request):
@@ -81,10 +148,9 @@ class SessionViewSet(viewsets.ModelViewSet):
         serializer = CoachSessionSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
 
-    @action(detail=True, methods=['patch'], url_path='update-status')
-    def update_status(self, request, pk=None):
+    def update_status_by_booking_id(self, request, booking_id=None):
         """
-        Coach: update the status of a specific booking.
+        Coach: update the status of a specific booking by booking_id.
         Allowed transitions: pending -> confirmed / cancelled
                              confirmed -> completed / cancelled
         """
@@ -93,13 +159,12 @@ class SessionViewSet(viewsets.ModelViewSet):
                 {"detail": "Only coaches can update session status."},
                 status=status.HTTP_403_FORBIDDEN
             )
-        session = get_object_or_404(CoachingSession, pk=pk, coach=request.user.coach_profile)
+        session = get_object_or_404(CoachingSession, booking_id=booking_id, coach=request.user.coach_profile)
         serializer = SessionStatusUpdateSerializer(
             session, data=request.data, partial=True
         )
         if serializer.is_valid():
             serializer.save()
-            # Return the full coach view of the updated session
             return Response(
                 CoachSessionSerializer(session, context={'request': request}).data
             )
@@ -134,3 +199,124 @@ class VirtualClassViewSet(viewsets.ModelViewSet):
             serializer.save(student=user, virtual_class=virtual_class)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class CoachAvailabilityView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.is_coach:
+            return Response({"detail": "Only coaches can access availability."}, status=status.HTTP_403_FORBIDDEN)
+        
+        coach = get_object_or_404(Coach, user=request.user)
+        weekly_schedule = []
+        days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        
+        for i, name in enumerate(days):
+            ranges_qs = CoachAvailabilityRange.objects.filter(coach=coach, day_of_week=i)
+            is_active = ranges_qs.filter(is_active=True).exists()
+            if not ranges_qs.exists():
+                is_active = False # Default empty day to inactive
+                
+            day_data = {
+                "day_of_week": i,
+                "day_name": name,
+                "is_active": is_active,
+                "ranges": [{"start": r.start_time.strftime("%H:%M"), "end": r.end_time.strftime("%H:%M")} for r in ranges_qs.filter(is_active=True).order_by('start_time')]
+            }
+            weekly_schedule.append(day_data)
+            
+        return Response({
+            "coach_id": coach.id,
+            "weekly_schedule": weekly_schedule
+        })
+
+    def put(self, request):
+        if not request.user.is_coach:
+            return Response({"detail": "Only coaches can access availability."}, status=status.HTTP_403_FORBIDDEN)
+            
+        coach = get_object_or_404(Coach, user=request.user)
+        serializer = WeeklyAvailabilitySerializer(data=request.data)
+        
+        if serializer.is_valid():
+            with transaction.atomic():
+                CoachAvailabilityRange.objects.filter(coach=coach).delete()
+                
+                for day_data in serializer.validated_data.get('weekly_schedule', []):
+                    day_of_week = day_data['day_of_week']
+                    is_active = day_data['is_active']
+                    
+                    if not is_active:
+                        CoachAvailabilityRange.objects.create(
+                            coach=coach,
+                            day_of_week=day_of_week,
+                            start_time="00:00",
+                            end_time="00:00",
+                            is_active=False
+                        )
+                    else:
+                        for r in day_data.get('ranges', []):
+                            CoachAvailabilityRange.objects.create(
+                                coach=coach,
+                                day_of_week=day_of_week,
+                                start_time=r['start_time'],
+                                end_time=r['end_time'],
+                                is_active=True
+                            )
+            return Response({"detail": "Availability schedule updated successfully."})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SmartSlotView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, id):
+        coach = get_object_or_404(Coach, id=id)
+        date_str = request.query_params.get('date')
+        duration_str = request.query_params.get('duration')
+        
+        if not date_str or not duration_str:
+            return Response({"error": "MISSING_PARAMETERS", "detail": "date and duration are required."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({"error": "INVALID_DATE_FORMAT", "detail": "date must be in YYYY-MM-DD format."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            duration_hours = int(duration_str)
+            if duration_hours < 1 or duration_hours > 8:
+                raise ValueError()
+        except ValueError:
+            return Response({"error": "INVALID_DURATION", "detail": "duration must be an integer between 1 and 8."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        dow = (date_obj.weekday() + 1) % 7 
+        ranges = CoachAvailabilityRange.objects.filter(coach=coach, day_of_week=dow, is_active=True)
+        
+        free_blocks = set()
+        for r in ranges:
+            cursor = datetime.combine(date_obj, r.start_time)
+            end = datetime.combine(date_obj, r.end_time)
+            while cursor + timedelta(hours=1) <= end:
+                free_blocks.add(cursor.strftime('%H:%M'))
+                cursor += timedelta(hours=1)
+                
+        booked = CoachingSession.objects.filter(coach=coach, date=date_obj, status__in=['pending', 'confirmed'])
+        for booking in booked:
+            cursor = datetime.combine(date_obj, booking.start_time)
+            end = datetime.combine(date_obj, booking.end_time)
+            while cursor < end:
+                free_blocks.discard(cursor.strftime('%H:%M'))
+                cursor += timedelta(hours=1)
+                
+        valid_slots = []
+        for slot in sorted(free_blocks):
+            dt = datetime.strptime(slot, '%H:%M')
+            if all((dt + timedelta(hours=i)).strftime('%H:%M') in free_blocks for i in range(duration_hours)):
+                valid_slots.append(slot)
+                
+        return Response({
+            "coach_id": coach.id,
+            "date": date_str,
+            "duration_hours": duration_hours,
+            "available_slots": valid_slots
+        })

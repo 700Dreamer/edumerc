@@ -3,6 +3,9 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from django.core.exceptions import ValidationError
+from datetime import datetime, timedelta
+import uuid
 
 class Coach(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='coach_profile')
@@ -25,6 +28,28 @@ class Coach(models.Model):
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} - {self.title}"
 
+class CoachAvailabilityRange(models.Model):
+    DAYS = [(i, name) for i, name in enumerate(
+        ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+    )]
+    coach = models.ForeignKey(Coach, on_delete=models.CASCADE, related_name='availability_ranges')
+    day_of_week = models.IntegerField(choices=DAYS)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['day_of_week', 'start_time']
+        indexes = [models.Index(fields=['coach', 'day_of_week'])]
+
+    def clean(self):
+        if self.start_time and self.end_time and self.start_time >= self.end_time:
+            raise ValidationError("start_time must be before end_time.")
+
+    def __str__(self):
+        return f"{self.coach} - {self.get_day_of_week_display()} ({self.start_time} to {self.end_time})"
+
 class CoachingSession(models.Model):
     STATUS_CHOICES = (
         ('pending', 'Pending'),
@@ -33,11 +58,14 @@ class CoachingSession(models.Model):
         ('cancelled', 'Cancelled'),
     )
 
-    coach = models.ForeignKey(Coach, on_delete=models.CASCADE, related_name='sessions')
-    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='booked_sessions')
+    booking_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
+
+    coach = models.ForeignKey(Coach, on_delete=models.PROTECT, related_name='sessions')
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='booked_sessions')
     
     date = models.DateField()
-    time = models.TimeField()
+    start_time = models.TimeField()
+    end_time = models.TimeField(blank=True, null=True)
     duration = models.PositiveIntegerField(default=1, help_text="Duration in hours")
     
     note = models.TextField(blank=True)
@@ -50,7 +78,19 @@ class CoachingSession(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-date', '-time']
+        ordering = ['-date', '-start_time']
+        indexes = [
+            models.Index(fields=['coach', 'date', 'status']),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.booking_id:
+            self.booking_id = f"BK-{uuid.uuid4().hex[:6].upper()}"
+        if self.start_time and self.duration and self.date and not self.end_time:
+            start_dt = datetime.combine(self.date, self.start_time)
+            end_dt = start_dt + timedelta(hours=self.duration)
+            self.end_time = end_dt.time()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Session: {self.student} with {self.coach} on {self.date}"

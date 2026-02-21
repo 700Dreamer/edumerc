@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment
+from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange
 
 @admin.register(Coach)
 class CoachAdmin(admin.ModelAdmin):
@@ -9,12 +9,15 @@ class CoachAdmin(admin.ModelAdmin):
 
 @admin.register(CoachingSession)
 class CoachingSessionAdmin(admin.ModelAdmin):
-    list_display = ('booking_id', 'student', 'coach', 'date', 'time', 'status')
-    search_fields = ('student__username', 'coach__user__username')
+    list_display = ('booking_id', 'student', 'coach', 'date', 'start_time', 'end_time', 'status')
+    search_fields = ('student__username', 'coach__user__username', 'booking_id')
     list_filter = ('status', 'date')
-    
-    def booking_id(self, obj):
-        return f"BK-{obj.id}"
+
+@admin.register(CoachAvailabilityRange)
+class CoachAvailabilityRangeAdmin(admin.ModelAdmin):
+    list_display = ('coach', 'get_day_of_week_display', 'start_time', 'end_time', 'is_active')
+    search_fields = ('coach__user__username', 'coach__user__email')
+    list_filter = ('day_of_week', 'is_active')
 
 @admin.register(VirtualClass)
 class VirtualClassAdmin(admin.ModelAdmin):

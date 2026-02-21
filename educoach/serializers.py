@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment
+from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange
 from django.db import transaction
 
 class CoachListSerializer(serializers.ModelSerializer):
@@ -57,22 +57,86 @@ class CoachPromotionSerializer(serializers.ModelSerializer):
 class CoachDetailSerializer(CoachListSerializer):
     pass
 
+class CoachAvailabilityRangeSerializer(serializers.ModelSerializer):
+    start = serializers.TimeField(source='start_time', format='%H:%M')
+    end = serializers.TimeField(source='end_time', format='%H:%M')
+
+    class Meta:
+        model = CoachAvailabilityRange
+        fields = ['start', 'end']
+
+class DailyAvailabilitySerializer(serializers.Serializer):
+    day_of_week = serializers.IntegerField(min_value=0, max_value=6)
+    day_name = serializers.SerializerMethodField(read_only=True)
+    is_active = serializers.BooleanField()
+    ranges = CoachAvailabilityRangeSerializer(many=True, required=False)
+
+    def get_day_name(self, obj):
+        days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        return days[obj.get('day_of_week')] if isinstance(obj, dict) else days[obj.day_of_week]
+
+    def validate(self, data):
+        is_active = data.get('is_active')
+        ranges = data.get('ranges', [])
+        
+        if not is_active:
+            data['ranges'] = []
+            return data
+            
+        if ranges:
+            sorted_ranges = sorted(ranges, key=lambda x: x.get('start_time'))
+            
+            for i, r in enumerate(sorted_ranges):
+                start = r.get('start_time')
+                end = r.get('end_time')
+                
+                if start >= end:
+                    raise serializers.ValidationError({"ranges": "Start time must be before end time."})
+                
+                if start.minute != 0 or start.second != 0 or end.minute != 0 or end.second != 0:
+                    raise serializers.ValidationError({"ranges": "Ranges must start and end at the top of the hour (e.g., 14:00)."})
+                
+                if i > 0:
+                    prev_r = sorted_ranges[i-1]
+                    if start < prev_r.get('end_time'):
+                        raise serializers.ValidationError({"ranges": f"Ranges overlap: {prev_r.get('start_time')} to {prev_r.get('end_time')} conflicts with {start} to {end}."})
+        
+        if len(ranges) > 5:
+            raise serializers.ValidationError({"ranges": "Maximum of 5 ranges per day allowed."})
+            
+        return data
+
+class WeeklyAvailabilitySerializer(serializers.Serializer):
+    weekly_schedule = DailyAvailabilitySerializer(many=True)
+
 class SessionSerializer(serializers.ModelSerializer):
     tutor_id = serializers.IntegerField(write_only=True)
     tutor_name = serializers.CharField(source='coach.user.get_full_name', read_only=True)
     booking_id = serializers.SerializerMethodField(read_only=True)
+    time = serializers.TimeField(source='start_time', format='%H:%M')
+    end_time = serializers.TimeField(read_only=True, format='%H:%M')
 
     class Meta:
         model = CoachingSession
         fields = [
             'booking_id', 'status', 'tutor_name', 'tutor_id',
-            'date', 'time', 'total_price', 'meeting_link',
-            'note', 'duration'
+            'date', 'time', 'end_time', 'duration', 'total_price',
+            'meeting_link', 'note'
         ]
-        read_only_fields = ['status', 'total_price', 'meeting_link', 'booking_id']
+        read_only_fields = ['status', 'total_price', 'meeting_link', 'booking_id', 'end_time']
+
+    def validate_duration(self, value):
+        if value < 1 or value > 8:
+            raise serializers.ValidationError("Duration must be between 1 and 8 hours.")
+        return value
+
+    def validate_time(self, value):
+        if value.minute != 0 or value.second != 0:
+            raise serializers.ValidationError("Sessions must start at the top of the hour (e.g., 14:00).")
+        return value
 
     def get_booking_id(self, obj):
-        return f"BK-{obj.id}"
+        return obj.booking_id or f"BK-{obj.id}"
 
 
 class CoachSessionSerializer(serializers.ModelSerializer):
@@ -80,18 +144,20 @@ class CoachSessionSerializer(serializers.ModelSerializer):
     booking_id = serializers.SerializerMethodField(read_only=True)
     student_name = serializers.SerializerMethodField(read_only=True)
     student_email = serializers.EmailField(source='student.email', read_only=True)
+    time = serializers.TimeField(source='start_time', format='%H:%M')
+    end_time = serializers.TimeField(read_only=True, format='%H:%M')
 
     class Meta:
         model = CoachingSession
         fields = [
             'booking_id', 'status', 'student_name', 'student_email',
-            'date', 'time', 'duration', 'total_price',
+            'date', 'time', 'end_time', 'duration', 'total_price',
             'meeting_link', 'note', 'created_at',
         ]
         read_only_fields = fields
 
     def get_booking_id(self, obj):
-        return f"BK-{obj.id}"
+        return obj.booking_id or f"BK-{obj.id}"
 
     def get_student_name(self, obj):
         return obj.student.get_full_name() or obj.student.username
