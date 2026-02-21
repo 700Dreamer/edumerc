@@ -28,7 +28,7 @@ def session_notification_signal(sender, instance, created, **kwargs):
                 f"Hello {instance.student.get_full_name() or instance.student.username},\n\n"
                 f"Your booking with {instance.coach.user.get_full_name() or instance.coach.user.username} has been confirmed.\n"
                 f"Date: {instance.date}\n"
-                f"Time: {instance.time}\n"
+                f"Time: {instance.start}\n"
                 f"Meeting Link: {instance.meeting_link or 'N/A'}\n\n"
                 f"See you then!"
             )
@@ -38,6 +38,6 @@ def session_notification_signal(sender, instance, created, **kwargs):
             subject = "Booking Cancelled"
             body = (
                 f"Hello {instance.student.get_full_name() or instance.student.username},\n\n"
-                f"Your booking with {instance.coach.user.get_full_name() or instance.coach.user.username} on {instance.date} at {instance.time} has been cancelled.\n"
+                f"Your booking with {instance.coach.user.get_full_name() or instance.coach.user.username} on {instance.date} at {instance.start_time} has been cancelled.\n"
             )
             gmail.send_email(instance.student.email, subject, body)
