@@ -14,21 +14,21 @@ class SchoolViewSet(viewsets.ModelViewSet):
     def events(self, request, slug=None):
         school = self.get_object()
         events = school.events.all()
-        serializer = SchoolEventSerializer(events, many=True)
+        serializer = SchoolEventSerializer(events, many=True, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=True, methods=['get', 'post'])
     def reviews(self, request, slug=None):
         school = self.get_object()
         if request.method == 'POST':
-            serializer = SchoolReviewSerializer(data=request.data)
+            serializer = SchoolReviewSerializer(data=request.data, context={'request': request})
             if serializer.is_valid():
                 serializer.save(school=school, user=request.user)
                 return Response(serializer.data, status=201)
             return Response(serializer.errors, status=400)
         
         reviews = school.reviews.all()
-        serializer = SchoolReviewSerializer(reviews, many=True)
+        serializer = SchoolReviewSerializer(reviews, many=True, context={'request': request})
         return Response(serializer.data)
 
 class SchoolEventViewSet(viewsets.ModelViewSet):

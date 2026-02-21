@@ -16,7 +16,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         """GET /shop/categories/{id}/products/ — products in this category"""
         category = self.get_object()
         products = Product.objects.filter(category=category)
-        serializer = ProductSerializer(products, many=True)
+        serializer = ProductSerializer(products, many=True, context={'request': request})
         return Response(serializer.data)
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -51,7 +51,7 @@ class CartViewSet(viewsets.ModelViewSet):
             else:
                 item.quantity = quantity
             item.save()
-            return Response(CartSerializer(cart).data)
+            return Response(CartSerializer(cart, context={'request': request}).data)
         except Product.DoesNotExist:
             return Response({"error": "Product not found"}, status=400)
 
@@ -104,7 +104,7 @@ class WishlistViewSet(viewsets.ModelViewSet):
             
             return Response({
                 "message": message,
-                "wishlist": WishlistSerializer(wishlist).data
+                "wishlist": WishlistSerializer(wishlist, context={'request': request}).data
             })
         except Product.DoesNotExist:
             return Response({"error": "Product not found"}, status=400)

@@ -27,15 +27,15 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
-CSRF_TRUSTED_ORIGINS = []
+
 CORS_ALLOW_ALL_ORIGINS = True
 
-# CSRF_TRUSTED_ORIGINS = [
+CSRF_TRUSTED_ORIGINS = [
 
-#     'https://edumerc.up.railway.app',
-#     'http://localhost:5174',
+    'https://edumerc.up.railway.app',
+    'http://localhost:5174',
 
-#       ]
+      ]
 
 # CORS_ALLOWED_ORIGINS = [
 #     'http://localhost:5174',
@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'edupedia',
     'payments',
     'educoach',
+    'notifications',
 ]
 
 MIDDLEWARE = [

@@ -21,7 +21,11 @@ class CoachListSerializer(serializers.ModelSerializer):
 
     def get_avatar(self, obj):
         if hasattr(obj.user, 'profile') and obj.user.profile.avatar:
-            return obj.user.profile.avatar.url
+            url = obj.user.profile.avatar.url
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(url)
+            return url
         return None
 
 class CoachPromotionSerializer(serializers.ModelSerializer):

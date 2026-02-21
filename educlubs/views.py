@@ -36,11 +36,11 @@ class SubCategoryViewSet(viewsets.ViewSet):
 
         name = main_cat.name.lower()
         if 'subject' in name:
-            data = SubjectLevelSerializer(main_cat.subject_levels.all(), many=True).data
+            data = SubjectLevelSerializer(main_cat.subject_levels.all(), many=True, context={'request': request}).data
         elif 'social' in name:
-            data = SocialGroupSerializer(main_cat.social_groups.all(), many=True).data
+            data = SocialGroupSerializer(main_cat.social_groups.all(), many=True, context={'request': request}).data
         elif 'teacher' in name:
-            data = TeacherCategorySerializer(main_cat.teacher_categories.all(), many=True).data
+            data = TeacherCategorySerializer(main_cat.teacher_categories.all(), many=True, context={'request': request}).data
         else:
             data = []
         
@@ -60,13 +60,13 @@ class ClubViewSet(viewsets.ViewSet):
 
         if ctype == 'subject':
             clubs = SubjectClub.objects.filter(level_id=sub_id)
-            serializer = SubjectClubSerializer(clubs, many=True)
+            serializer = SubjectClubSerializer(clubs, many=True, context={'request': request})
         elif ctype == 'social':
             clubs = SocialClub.objects.filter(group_id=sub_id)
-            serializer = SocialClubSerializer(clubs, many=True)
+            serializer = SocialClubSerializer(clubs, many=True, context={'request': request})
         elif ctype == 'teacher':
             clubs = TeacherClub.objects.filter(category_id=sub_id)
-            serializer = TeacherClubSerializer(clubs, many=True)
+            serializer = TeacherClubSerializer(clubs, many=True, context={'request': request})
         else:
             return Response({"error": "Invalid type"}, status=400)
 
@@ -89,18 +89,18 @@ class ClubViewSet(viewsets.ViewSet):
         except (SubjectClub.DoesNotExist, SocialClub.DoesNotExist, TeacherClub.DoesNotExist):
             return Response({"error": "Club not found"}, status=404)
 
-        serializer = UnifiedClubDetailSerializer(obj)
+        serializer = UnifiedClubDetailSerializer(obj, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='curriculum/(?P<club_id>[^/.]+)')
     def curriculum(self, request, club_id=None):
         topics = Topic.objects.filter(club_id=club_id).prefetch_related('lessons')
-        return Response(TopicSerializer(topics, many=True).data)
+        return Response(TopicSerializer(topics, many=True, context={'request': request}).data)
 
     @action(detail=False, methods=['get'], url_path='discussions/(?P<club_id>[^/.]+)')
     def discussions(self, request, club_id=None):
         discussions = ClubDiscussion.objects.filter(club_id=club_id).order_by('-created_at')
-        return Response(ClubDiscussionSerializer(discussions, many=True).data)
+        return Response(ClubDiscussionSerializer(discussions, many=True, context={'request': request}).data)
 
 # Generic fallback viewsets for administrative CRUD if needed
 class TopicViewSet(viewsets.ModelViewSet):
