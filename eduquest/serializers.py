@@ -17,8 +17,8 @@ class MaterialOrderSerializer(serializers.ModelSerializer):
             'material', 'material_title',
             'session',
             'school_name', 'representative', 'location',
-            'address', 'phone', 'email', 'delivery_date',
+            'address', 'phone', 'email', 'delivery_date', 'expected_delivery_date',
             'levels_data', 'total_sets', 'estimated_amount',
             'status', 'transaction', 'ordered_at'
         ]
-        read_only_fields = ['user', 'status', 'reference', 'transaction', 'ordered_at']
+        read_only_fields = ['user', 'status', 'reference', 'transaction', 'ordered_at', 'expected_delivery_date']

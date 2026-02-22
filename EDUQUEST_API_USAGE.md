@@ -65,7 +65,9 @@ The backend returns your entire order, including a guaranteed `reference` ID.
 
 ## 2. Admin Approval
 By default, newly created orders have a `PENDING` status. 
-An administrator must review the order manually on the **Django Admin (Unfold)** interface, update/verify the `estimated_amount`, and update the order Status to **`APPROVED`**.
+An administrator must review the order manually on the **Django Admin (Unfold)** interface.
+- If approving: update/verify the `estimated_amount`, set the `expected_delivery_date` (the date you will manage to deliver the order), and update the order Status to **`APPROVED`**.
+- If declining: update the order status to **`DECLINED`**.
 
 ---
 

@@ -10,6 +10,6 @@ class MaterialAdmin(ModelAdmin):
 
 @admin.register(MaterialOrder)
 class MaterialOrderAdmin(ModelAdmin):
-    list_display = ['reference', 'user', 'school_name', 'status', 'total_sets', 'estimated_amount', 'ordered_at']
+    list_display = ['reference', 'user', 'school_name', 'status', 'expected_delivery_date', 'total_sets', 'estimated_amount', 'ordered_at']
     list_filter = ['status', 'session']
     search_fields = ['reference', 'user__username', 'school_name', 'representative', 'email', 'phone']

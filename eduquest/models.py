@@ -33,6 +33,7 @@ class MaterialOrder(models.Model):
     STATUS_CHOICES = (
         ('PENDING',   'Pending'),
         ('APPROVED',  'Approved'),
+        ('DECLINED',  'Declined'),
         ('PAID',      'Paid'),
         ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
@@ -62,7 +63,8 @@ class MaterialOrder(models.Model):
     address        = models.CharField(max_length=300, blank=True)
     phone          = models.CharField(max_length=20, blank=True)
     email          = models.EmailField(blank=True)
-    delivery_date  = models.DateField(null=True, blank=True)
+    delivery_date  = models.DateField(null=True, blank=True)  # User requested delivery date
+    expected_delivery_date = models.DateField(null=True, blank=True, help_text="Date the administration manages to deliver by")
 
     # NEW: Flexible levels + subjects snapshot
     levels_data      = models.JSONField(default=list, blank=True)
