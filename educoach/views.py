@@ -7,14 +7,14 @@ from django.db import transaction, models
 from django.contrib.auth import get_user_model
 from datetime import datetime, timedelta
 
-from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange
+from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange, CoachEarnings
 from payments.models import Withdrawal
 from django.db.models import Sum
 from .serializers import (
     CoachListSerializer, CoachDetailSerializer, 
     SessionSerializer, CoachSessionSerializer, SessionStatusUpdateSerializer,
     VirtualClassSerializer, ClassEnrollmentSerializer, CoachPromotionSerializer,
-    WeeklyAvailabilitySerializer
+    WeeklyAvailabilitySerializer, CoachEarningsSerializer
 )
 
 User = get_user_model()
@@ -31,42 +31,32 @@ class CoachViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='earnings')
     def earnings(self, request):
         """
-        Coach: view financial stats.
-        - demanding_amount: total from completed sessions.
-        - expecting_amount: total from confirmed sessions that haven't happened yet.
-        - withdrawn_amount: total amount already cashed out.
+        Coach: view financial stats from the ledger.
         """
         if not request.user.is_coach:
             return Response({"detail": "Only coaches can view earnings."}, status=status.HTTP_403_FORBIDDEN)
             
         coach = get_object_or_404(Coach, user=request.user)
+        ledger = CoachEarnings.objects.filter(coach=coach)
         
-        # 1. Demanding (Completed)
-        demanding = CoachingSession.objects.filter(
-            coach=coach, status='completed'
-        ).aggregate(total=Sum('total_price'))['total'] or 0.00
+        # Aggregations
+        earning = ledger.filter(transaction_type='EARNING', status='EARNED').aggregate(total=Sum('amount'))['total'] or 0.00
+        withdrawn = ledger.filter(transaction_type='WITHDRAWAL', status='WITHDRAWN').aggregate(total=Sum('amount'))['total'] or 0.00
+        expected = ledger.filter(transaction_type='EARNING', status='EXPECTED').aggregate(total=Sum('amount'))['total'] or 0.00
         
-        # 2. Expecting (Confirmed & Future)
-        now = datetime.now()
-        today = now.date()
-        now_time = now.time()
+        budget = float(earning) - float(withdrawn)
         
-        expecting = CoachingSession.objects.filter(
-            coach=coach, status='confirmed'
-        ).filter(
-            models.Q(date__gt=today) | models.Q(date=today, start_time__gt=now_time)
-        ).aggregate(total=Sum('total_price'))['total'] or 0.00
-        
-        # 3. Withdrawn (Completed Withdrawals)
-        withdrawn = Withdrawal.objects.filter(
-            user=request.user, status='COMPLETED'
-        ).aggregate(total=Sum('amount'))['total'] or 0.00
+        # Recent transactions
+        transactions = ledger.order_by('-created_at')[:20]
+        serializer = CoachEarningsSerializer(transactions, many=True)
         
         return Response({
-            "demanding_amount": float(demanding),
-            "expecting_amount": float(expecting),
-            "withdrawn_amount": float(withdrawn),
-            "currency": "UGX" # Defaulting to UGX as seen in Transaction model
+            "Budget": budget,
+            "earning": float(earning),
+            "withdrawn": float(withdrawn),
+            "amount_expected": float(expected),
+            "response_obj": serializer.data,
+            "currency": "UGX"
         })
 
 class PromoteCoachView(generics.CreateAPIView):

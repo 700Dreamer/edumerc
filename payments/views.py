@@ -170,7 +170,7 @@ class PesaPalIPNViewSet(viewsets.ViewSet):
                     transaction.payment_method = status_res.get('payment_method', '')
                     transaction.save()
                     
-                    # Update linked orders
+                    # Update linked EduShop orders
                     if transaction.orders.exists():
                         for order in transaction.orders.all():
                             if transaction.status == 'COMPLETED':
@@ -179,6 +179,16 @@ class PesaPalIPNViewSet(viewsets.ViewSet):
                                 order.status = 'Cancelled'
                             order.save()
                             logger.info(f"Order {order.id} status updated to {order.status}")
+                            
+                    # Update linked EduQuest MaterialOrders
+                    if hasattr(transaction, 'material_orders') and transaction.material_orders.exists():
+                        for m_order in transaction.material_orders.all():
+                            if transaction.status == 'COMPLETED':
+                                m_order.status = 'PAID'
+                            elif transaction.status in ['FAILED', 'REVERSED', 'INVALID']:
+                                m_order.status = 'CANCELLED'
+                            m_order.save()
+                            logger.info(f"MaterialOrder {m_order.reference} status updated to {m_order.status}")
                     
                     logger.info(f"Transaction {tracking_id} updated to {transaction.status}")
                     

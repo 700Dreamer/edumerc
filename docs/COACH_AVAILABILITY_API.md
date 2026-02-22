@@ -230,21 +230,50 @@ Update an appointment's status (e.g., accept the booking and provide a meeting l
 Coaches can track their revenue performance including completed, pending, and cashed-out amounts.
 
 ### `GET /api/v1/coach/tutors/earnings/`
-Fetch the logged-in coach's financial summary.
+Fetch the logged-in coach's financial ledger and aggregates.
 - **Auth:** `TEACHER` (Requires an active `Coach` profile).
 
 **Response (200 OK):**
 ```json
 {
-  "demanding_amount": 150000.0,
-  "expecting_amount": 45000.0,
-  "withdrawn_amount": 30000.0,
-  "currency": "UGX"
+  "Budget": 120000.0,
+  "earning": 150000.0,
+  "withdrawn": 30000.0,
+  "amount_expected": 45000.0,
+  "currency": "UGX",
+  "response_obj": [
+    {
+      "transaction_id": "BK-FC7245",
+      "session_id": "BK-FC7245",
+      "student_name": "Test Student",
+      "amount": "200.00",
+      "transaction_type": "EARNING",
+      "status": "EARNED",
+      "duration": 2,
+      "price": "100.00",
+      "date": "2026-03-25",
+      "created_at": "2026-02-21T18:59:00Z"
+    },
+    {
+      "transaction_id": "W-987654",
+      "session_id": null,
+      "student_name": null,
+      "amount": "30000.00",
+      "transaction_type": "WITHDRAWAL",
+      "status": "WITHDRAWN",
+      "duration": null,
+      "price": null,
+      "date": "2026-02-20",
+      "created_at": "2026-02-20T12:00:00Z"
+    }
+  ]
 }
 ```
 
 **Field Descriptions:**
-- `demanding_amount`: Revenue from sessions that have been successfully marked as **Completed**.
-- `expecting_amount`: Revenue from sessions marked as **Confirmed** that are scheduled for the future.
-- `withdrawn_amount`: The total sum of all cash-outs marked as **Completed** in the withdrawal history.
+- `Budget`: Current available balance (Total Earned - Total Withdrawn).
+- `earning`: Historical revenue from all sessions marked as **EARNED**.
+- `withdrawn`: Historical funds successfully cashed out.
+- `amount_expected`: Revenue from confirmed sessions scheduled for the future (**EXPECTED**).
+- `response_obj`: A list of granular ledger entries for every transaction.
 

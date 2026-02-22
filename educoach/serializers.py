@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange
+from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange, CoachEarnings
 from django.db import transaction
 
 class CoachListSerializer(serializers.ModelSerializer):
@@ -208,3 +208,15 @@ class ClassEnrollmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClassEnrollment
         fields = ['student_id', 'payment_reference']
+
+class CoachEarningsSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source='student.get_full_name', read_only=True)
+    session_id = serializers.CharField(source='session.booking_id', read_only=True)
+    
+    class Meta:
+        model = CoachEarnings
+        fields = [
+            'transaction_id', 'session_id', 'student_name', 
+            'amount', 'transaction_type', 'status', 
+            'duration', 'price', 'date', 'created_at'
+        ]

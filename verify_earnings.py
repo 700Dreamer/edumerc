@@ -71,14 +71,17 @@ def run_tests():
     print("Response Data:", response.data)
     
     # Expected:
-    # demanding: 100.00
-    # expecting: 150.00
-    # withdrawn: 50.00
+    # earning: 100.00 (one completed session)
+    # withdrawn: 50.00 (one completed withdrawal)
+    # amount_expected: 150.00 (one confirmed future session)
+    # Budget: 50.00 (100 - 50)
     
     data = response.data
-    assert data['demanding_amount'] == 100.00
-    assert data['expecting_amount'] == 150.00
-    assert data['withdrawn_amount'] == 50.00
+    assert data['earning'] == 100.00
+    assert data['withdrawn'] == 50.00
+    assert data['amount_expected'] == 150.00
+    assert data['Budget'] == 50.00
+    assert len(data['response_obj']) >= 3 # session1, session2, withdrawal1
     
     print("--- Verification Successful! ---")
 

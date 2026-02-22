@@ -133,6 +133,42 @@ class ClassEnrollment(models.Model):
     def __str__(self):
         return f"{self.student} in {self.virtual_class}"
 
+class CoachEarnings(models.Model):
+    TRANSACTION_TYPES = (
+        ('EARNING', 'Earning'),
+        ('WITHDRAWAL', 'Withdrawal'),
+    )
+    STATUS_CHOICES = (
+        ('EXPECTED', 'Expected'),
+        ('EARNED', 'Earned'),
+        ('WITHDRAWN', 'Withdrawn'),
+        ('CANCELLED', 'Cancelled'),
+    )
+    
+    coach = models.ForeignKey(Coach, on_delete=models.CASCADE, related_name='ledger')
+    session = models.ForeignKey(CoachingSession, on_delete=models.SET_NULL, null=True, blank=True, related_name='earnings_records')
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='EXPECTED')
+    
+    # Financial Metadata
+    duration = models.PositiveIntegerField(null=True, blank=True)
+    price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    date = models.DateField(null=True, blank=True)
+    transaction_id = models.CharField(max_length=100, help_text="Session Booking ID or Withdrawal ID")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Coach Earnings"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.coach.user.username} - {self.transaction_type} - {self.amount}"
+
 
 # ---------------------------------------------------------------------------
 # Signals: keep user.is_coach in sync with the Coach profile
@@ -154,4 +190,59 @@ def sync_is_coach_on_delete(sender, instance, **kwargs):
     if user.is_coach:
         user.is_coach = False
         user.save(update_fields=['is_coach'])
+
+@receiver(post_save, sender=CoachingSession)
+def create_ledger_entry_on_session_save(sender, instance, created, **kwargs):
+    """
+    Sync CoachingSession with CoachEarnings ledger.
+    - New booking (pending/confirmed) -> EXPECTED
+    - Status 'completed' -> EARNED
+    - Status 'cancelled' -> CANCELLED
+    """
+    status_map = {
+        'pending': 'EXPECTED',
+        'confirmed': 'EXPECTED',
+        'completed': 'EARNED',
+        'cancelled': 'CANCELLED'
+    }
+    
+    ledger_status = status_map.get(instance.status, 'EXPECTED')
+    
+    # Use update_or_create to ensure one ledger record per session
+    CoachEarnings.objects.update_or_create(
+        session=instance,
+        defaults={
+            'coach': instance.coach,
+            'student': instance.student,
+            'amount': instance.total_price,
+            'transaction_type': 'EARNING',
+            'status': ledger_status,
+            'duration': instance.duration,
+            'price': instance.coach.price_per_hour,
+            'date': instance.date,
+            'transaction_id': instance.booking_id
+        }
+    )
+
+@receiver(post_save, sender='payments.Withdrawal')
+def create_ledger_entry_on_withdrawal_save(sender, instance, **kwargs):
+    """
+    Sync Withdrawal with CoachEarnings ledger when COMPLETED.
+    """
+    if instance.status == 'COMPLETED':
+        # Check if we already have this withdrawal in the ledger
+        if not CoachEarnings.objects.filter(transaction_id=str(instance.id), transaction_type='WITHDRAWAL').exists():
+            try:
+                coach = instance.user.coach_profile
+                CoachEarnings.objects.create(
+                    coach=coach,
+                    amount=instance.amount,
+                    transaction_type='WITHDRAWAL',
+                    status='WITHDRAWN',
+                    transaction_id=str(instance.id),
+                    date=instance.updated_at.date()
+                )
+            except Exception:
+                # User might not have a coach profile or other issues
+                pass
 # update
