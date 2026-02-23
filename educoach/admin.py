@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange
+from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange, CoachEarnings
 
 @admin.register(Coach)
 class CoachAdmin(admin.ModelAdmin):

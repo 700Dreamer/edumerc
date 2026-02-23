@@ -2,13 +2,16 @@ from rest_framework import viewsets, status, permissions, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.db import transaction, models
 from django.contrib.auth import get_user_model
 from datetime import datetime, timedelta
 
+import uuid
 from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange, CoachEarnings
-from payments.models import Withdrawal
+from payments.models import Withdrawal, Transaction
+from payments.pesapal_service import PesaPalService
 from django.db.models import Sum
 from .serializers import (
     CoachListSerializer, CoachDetailSerializer, 
@@ -180,6 +183,127 @@ class SessionViewSet(viewsets.ModelViewSet):
         queryset = CoachingSession.objects.filter(coach=coach).order_by('-date', '-start_time')
         serializer = CoachSessionSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='initiate-payment')
+    def initiate_payment(self, request, pk=None):
+        session = self.get_object()
+        
+        if session.status != 'confirmed':
+            return Response(
+                {"error": "Session must be confirmed before payment can be initiated."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if session.payment_status == 'paid':
+            return Response(
+                {"error": "This session has already been paid for."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if session.total_price <= 0:
+             return Response(
+                {"error": "Invalid session price. Cannot proceed with payment."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Check if a valid transaction already exists
+        if session.transaction and session.transaction.status == 'PENDING' and session.transaction.order_tracking_id:
+             return Response(
+                 {"error": "A pending payment already exists for this session."},
+                 status=status.HTTP_400_BAD_REQUEST
+             )
+        
+        # Create a local Transaction
+        merchant_ref = f"EC-PMT-{uuid.uuid4().hex[:8].upper()}"
+        transaction_obj = Transaction.objects.create(
+            user=request.user,
+            amount=session.total_price,
+            description=f"Payment for Coaching Session {session.booking_id}",
+            merchant_reference=merchant_ref,
+            status='PENDING'
+        )
+        
+        session.transaction = transaction_obj
+        session.save(update_fields=['transaction'])
+        
+        pesapal = PesaPalService()
+        callback_url = getattr(settings, 'PESAPAL_CALLBACK_URL', 'http://localhost:5173/payment-success')
+        order_res = pesapal.submit_order(transaction_obj, callback_url)
+        
+        if order_res and 'redirect_url' in order_res:
+            transaction_obj.order_tracking_id = order_res['order_tracking_id']
+            transaction_obj.save(update_fields=['order_tracking_id'])
+            
+            return Response({
+                "redirect_url": order_res['redirect_url'],
+                "merchant_reference": merchant_ref,
+                "order_tracking_id": order_res['order_tracking_id'],
+                "booking_id": session.booking_id
+            })
+            
+        return Response({"error": "Failed to initiate payment with PesaPal"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], url_path='initiate-payment-by-booking/(?P<booking_id>[^/.]+)')
+    def initiate_payment_by_booking(self, request, booking_id=None):
+        session = get_object_or_404(CoachingSession, booking_id=booking_id)
+        
+        # Security check: only the student who booked it can initiate payment
+        if session.student != request.user:
+            return Response({"error": "Unauthorized access to this booking."}, status=status.HTTP_403_FORBIDDEN)
+
+        if session.status != 'confirmed':
+            return Response(
+                {"error": "Session must be confirmed before payment can be initiated."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if session.payment_status == 'paid':
+            return Response(
+                {"error": "This session has already been paid for."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if session.total_price <= 0:
+             return Response(
+                {"error": "Invalid session price. Cannot proceed with payment."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Check if a valid transaction already exists
+        if session.transaction and session.transaction.status == 'PENDING' and session.transaction.order_tracking_id:
+             # Instead of erroring, we can return the existing redirect URL if we have it?
+             # But PesaPal URLs expire. Better to just allow re-initiation for now or handle it.
+             pass
+        
+        # Create a local Transaction
+        merchant_ref = f"EC-PMT-{uuid.uuid4().hex[:8].upper()}"
+        transaction_obj = Transaction.objects.create(
+            user=request.user,
+            amount=session.total_price,
+            description=f"Payment for Coaching Session {session.booking_id}",
+            merchant_reference=merchant_ref,
+            status='PENDING'
+        )
+        
+        session.transaction = transaction_obj
+        session.save(update_fields=['transaction'])
+        
+        pesapal = PesaPalService()
+        callback_url = getattr(settings, 'PESAPAL_CALLBACK_URL', 'http://localhost:5173/payment-success')
+        order_res = pesapal.submit_order(transaction_obj, callback_url)
+        
+        if order_res and 'redirect_url' in order_res:
+            transaction_obj.order_tracking_id = order_res['order_tracking_id']
+            transaction_obj.save(update_fields=['order_tracking_id'])
+            
+            return Response({
+                "redirect_url": order_res['redirect_url'],
+                "merchant_reference": merchant_ref,
+                "order_tracking_id": order_res['order_tracking_id'],
+                "booking_id": session.booking_id
+            })
+            
+        return Response({"error": "Failed to initiate payment with PesaPal"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def update_status_by_booking_id(self, request, booking_id=None):
         """

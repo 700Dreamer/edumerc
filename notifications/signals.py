@@ -23,13 +23,18 @@ def session_notification_signal(sender, instance, created, **kwargs):
     else:
         # Check if status has changed (using simple check, could be improved by tracking old state)
         if instance.status == 'confirmed':
-            subject = "Booking Confirmed!"
+            # Construct the payment link (frontend link that will hit the initiate-payment endpoint)
+            payment_init_url = f"https://edumerc.up.railway.app/pay-session/{instance.booking_id}"
+            
+            subject = "Booking Confirmed - Complete your Payment"
             body = (
                 f"Hello {instance.student.get_full_name() or instance.student.username},\n\n"
                 f"Your booking with {instance.coach.user.get_full_name() or instance.coach.user.username} has been confirmed.\n"
                 f"Date: {instance.date}\n"
                 f"Time: {instance.start_time}\n"
                 f"Meeting Link: {instance.meeting_link or 'N/A'}\n\n"
+                f"IMPORTANT: Please complete your payment to secure this slot.\n"
+                f"Click here to pay: {payment_init_url}\n\n"
                 f"See you then!"
             )
             gmail.send_email(instance.student.email, subject, body)

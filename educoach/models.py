@@ -58,6 +58,12 @@ class CoachingSession(models.Model):
         ('cancelled', 'Cancelled'),
     )
 
+    PAYMENT_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('paid', 'Paid'),
+        ('cancelled', 'Cancelled'),
+    )
+
     booking_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
 
     coach = models.ForeignKey(Coach, on_delete=models.PROTECT, related_name='sessions')
@@ -71,6 +77,10 @@ class CoachingSession(models.Model):
     note = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
+    # NEW: Payment tracking
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    transaction = models.ForeignKey('payments.Transaction', on_delete=models.SET_NULL, null=True, blank=True, related_name='coaching_sessions')
+
     meeting_link = models.CharField(blank=True, null=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
@@ -90,6 +100,11 @@ class CoachingSession(models.Model):
             start_dt = datetime.combine(self.date, self.start_time)
             end_dt = start_dt + timedelta(hours=self.duration)
             self.end_time = end_dt.time()
+        
+        # Calculate total_price if not set
+        if self.coach and self.duration and (not self.total_price or self.total_price == 0):
+            self.total_price = self.coach.price_per_hour * self.duration
+            
         super().save(*args, **kwargs)
 
     def __str__(self):

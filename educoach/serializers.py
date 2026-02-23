@@ -119,11 +119,11 @@ class SessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoachingSession
         fields = [
-            'booking_id', 'status', 'tutor_name', 'tutor_id',
+            'booking_id', 'status', 'payment_status', 'transaction', 'tutor_name', 'tutor_id',
             'date', 'time', 'end_time', 'duration', 'total_price',
             'meeting_link', 'note'
         ]
-        read_only_fields = ['status', 'total_price', 'meeting_link', 'booking_id', 'end_time']
+        read_only_fields = ['status', 'payment_status', 'transaction', 'total_price', 'meeting_link', 'booking_id', 'end_time']
 
     def validate_duration(self, value):
         if value < 1 or value > 8:

@@ -74,6 +74,20 @@ Comprehensive guide for interacting with the Edumerk API modules.
 
 ---
 
+## EduCoach (Tutoring & Sessions)
+**Base URL**: `/api/v1/coach/`
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `tutors/` | GET | List available tutors |
+| `tutors/{id}/slots/` | GET | Bookable time slots |
+| `sessions/` | GET/POST | My bookings (Student) |
+| `sessions/{id}/initiate-payment/` | POST | Get PesaPal payment link |
+| `promote/` | POST | Apply to become a tutor |
+| `appointments/` | GET | Tutors: view student bookings |
+
+---
+
 ---
 
 > [!TIP]

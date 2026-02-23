@@ -55,8 +55,6 @@ CSRF_TRUSTED_ORIGINS = [
 
 INSTALLED_APPS = [
     "corsheaders",
-    "unfold",  # before django.contrib.admin
-    "unfold.contrib.filters",  # optional, if special filters are needed
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -189,31 +187,6 @@ PESAPAL_IPN_ID = "b8dab8c6-23a6-4989-9602-dab89a2bc831"
 # The URL where PesaPal will redirect the user after payment
 PESAPAL_CALLBACK_URL = 'https://1cf2-41-84-202-116.ngrok-free.app/api/v1/payments/initiate/payment-success' 
 
-UNFOLD = {
-    "SITE_TITLE": "EduMerc Admin",
-    "SITE_HEADER": "EduMerc",
-    "SIDEBAR": {
-        "show_search": True,
-        "show_all_applications": True,
-        "navigation": [
-            {
-                "title": "Educational Quests",
-                "separator": True,
-                "items": [
-                    {
-                        "title": "Materials",
-                        "icon": "book_2",
-                        "link": "/admin/eduquest/material/"
-                    },
-                    {
-                        "title": "Material Orders",
-                        "icon": "shopping_cart",
-                        "link": "/admin/eduquest/materialorder/"
-                    }
-                ]
-            }
-        ]
-    }
-}
+
 
 load_dotenv()

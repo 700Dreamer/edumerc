@@ -190,6 +190,16 @@ class PesaPalIPNViewSet(viewsets.ViewSet):
                             m_order.save()
                             logger.info(f"MaterialOrder {m_order.reference} status updated to {m_order.status}")
                     
+                    # Update linked EduCoach CoachingSessions
+                    if hasattr(transaction, 'coaching_sessions') and transaction.coaching_sessions.exists():
+                        for session in transaction.coaching_sessions.all():
+                            if transaction.status == 'COMPLETED':
+                                session.payment_status = 'paid'
+                            elif transaction.status in ['FAILED', 'REVERSED', 'INVALID']:
+                                session.payment_status = 'cancelled'
+                            session.save()
+                            logger.info(f"CoachingSession {session.booking_id} payment_status updated to {session.payment_status}")
+                    
                     logger.info(f"Transaction {tracking_id} updated to {transaction.status}")
                     
                 except Transaction.DoesNotExist:
