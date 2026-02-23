@@ -162,7 +162,7 @@ def populate():
                 coach=coach,
                 student=student,
                 date=date,
-                time=time_obj,
+                start_time=time_obj,
                 defaults={
                     'duration': 1,
                     'note': "I need help with revision.",

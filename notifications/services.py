@@ -31,9 +31,13 @@ class GmailService:
 
         return creds
 
-    def send_email(self, to, subject, body):
+    def send_email(self, to, subject, body, is_html=False):
         try:
-            message = MIMEText(body)
+            if is_html:
+                message = MIMEText(body, 'html')
+            else:
+                message = MIMEText(body, 'plain')
+            
             message['to'] = to
             message['subject'] = subject
 
@@ -56,3 +60,67 @@ class GmailService:
         except Exception as e:
             print(f"An error occurred: {e}")
             return None
+
+    def get_html_template(self, title, message, details, button_text=None, button_url=None, status="Pending"):
+        """
+        Generates an HTML email based on the design provided.
+        details: list of dicts like {'label': 'Booking ID', 'value': 'BK-123'}
+        """
+        details_html = ""
+        for item in details:
+            details_html += f"""
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 10px 0;">
+                <span style="color: #666;">{item['label']}</span>
+                <strong style="color: #333;">{item['value']}</strong>
+            </div>
+            """
+
+        status_color = "#f39c12" # orange for pending
+        if status.lower() in ["paid", "confirmed", "completed", "approved"]:
+            status_color = "#27ae60" # green
+        elif status.lower() in ["cancelled", "declined", "failed"]:
+            status_color = "#e74c3c" # red
+
+        button_html = ""
+        if button_text and button_url:
+            button_html = f"""
+            <div style="margin-top: 30px; text-align: center;">
+                <a href="{button_url}" style="background: #00695c; color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none; font-weight: bold; display: block;">{button_text}</a>
+            </div>
+            """
+
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                .status-text {{ color: {status_color} !important; font-weight: bold !important; }}
+            </style>
+        </head>
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f9; margin: 0; padding: 20px;">
+            <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eee;">
+                <div style="padding: 20px; border-bottom: 1px solid #f0f0f0;">
+                    <h2 style="margin: 0; color: #1a202c; font-size: 20px;">{title}</h2>
+                </div>
+                <div style="padding: 30px; text-align: center;">
+                    <div style="width: 60px; height: 60px; background: #e8f5e9; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; text-align: center; line-height: 60px;">
+                        <span style="color: #27ae60; font-size: 30px; font-weight: bold;">✓</span>
+                    </div>
+                    <p style="color: #4a5568; line-height: 1.5; margin: 0; text-align: center;">{message}</p>
+                    
+                    <div style="background: #f8f9fa; border-radius: 15px; padding: 20px; text-align: left; margin-top: 20px;">
+                        {details_html}
+                        <div style="display: flex; justify-content: space-between; padding: 10px 0;">
+                            <span style="color: #666;">Status</span>
+                            <span style="color: {status_color}; font-weight: bold;">{status}</span>
+                        </div>
+                    </div>
+                    
+                    {button_html}
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        return html

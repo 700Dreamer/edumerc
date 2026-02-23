@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Load .env before other imports or config calls
+load_dotenv()
+
 from decouple import config
 GMAIL_TOKEN_JSON = config("GMAIL_TOKEN_JSON")
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -113,12 +117,44 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
+
+
+
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='railway'),
+        'USER': config('DB_USER', default='postgres'),
+        'PASSWORD': config('DB_PASSWORD', default='Shsd.vWzAj8c8Yg5vlqXLpIIEassK_Zi'),
+        'HOST': config('DB_HOST', default='gondola.proxy.rlwy.net'),
+        'PORT': config('DB_PORT', default='30149'),
+        
+        # Connection management and performance
+        'CONN_MAX_AGE': config('CONN_MAX_AGE', default=600, cast=int),
+        'CONN_HEALTH_CHECKS': True,
+        
+        'OPTIONS': {
+            'connect_timeout': 5,
+            # Railway internal connections might not need SSL, 
+            # but external tunnels often benefit from 'require' or 'prefer'
+            'sslmode': config('DB_SSLMODE', default='prefer'),
+        },
     }
 }
+
+
+
+
+
+
 
 
 # Password validation
@@ -189,4 +225,4 @@ PESAPAL_CALLBACK_URL = 'https://1cf2-41-84-202-116.ngrok-free.app/api/v1/payment
 
 
 
-load_dotenv()
+# load_dotenv() is now at the top
