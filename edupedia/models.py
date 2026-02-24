@@ -9,7 +9,7 @@ class School(models.Model):
     
     # Branding
     logo = models.ImageField(upload_to='school_logos/', blank=True, null=True)
-    cover_image = models.ImageField(upload_to='school_covers/', blank=True, null=True)
+    coverImage = models.ImageField(upload_to='school_covers/', blank=True, null=True)
     
     # Multimedia
     video_360_url = models.URLField(blank=True, null=True, help_text="Link to 360 video (e.g., YouTube/Vimeo)")
