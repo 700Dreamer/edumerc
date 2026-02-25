@@ -6,9 +6,14 @@ from edushop.serializers import CartSerializer, WishlistSerializer, OrderSeriali
 User = get_user_model()
 
 class ProfileSerializer(serializers.ModelSerializer):
+    first_name = serializers.ReadOnlyField(source='user.first_name')
+    last_name = serializers.ReadOnlyField(source='user.last_name')
+    role = serializers.ReadOnlyField(source='user.role')
+    is_coach = serializers.ReadOnlyField(source='user.is_coach')
+
     class Meta:
         model = Profile
-        fields = ['bio', 'avatar', 'preferences', 'created_at', 'updated_at']
+        fields = ['bio', 'avatar', 'preferences', 'created_at', 'updated_at', 'first_name', 'last_name', 'role', 'is_coach']
         read_only_fields = ['created_at', 'updated_at']
 
 class UserSerializer(serializers.ModelSerializer):
