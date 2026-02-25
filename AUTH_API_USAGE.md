@@ -30,6 +30,17 @@ This document outlines the usage of the authentication and profile API endpoints
 ```
 - **Response**: Returns `access` and `refresh` tokens.
 
+### **Google OAuth Login**
+- **URL**: `/auth/google/`
+- **Method**: `POST`
+- **Body** (JSON):
+```json
+{
+  "id_token": "YOUR_GOOGLE_ID_TOKEN"
+}
+```
+- **Response**: Returns `access` and `refresh` tokens identical to standard login. Creates a new user if one doesn't exist.
+
 ### **Refresh Token**
 - **URL**: `/auth/refresh/`
 - **Method**: `POST`
