@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',
     'rest_framework',
     'rest_framework_simplejwt',
     'users',
@@ -209,8 +210,36 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "static"
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# ---------------------------------------------------------------------------
+# Google Cloud Storage – Media files  (Django 4.2+ STORAGES API)
+# ---------------------------------------------------------------------------
+GCS_BUCKET_NAME = config('GCS_BUCKET_NAME', default='')
+GCS_CREDENTIALS_FILE = config('GCS_CREDENTIALS_FILE', default='')  # path to service-account JSON
+
+if GCS_BUCKET_NAME:
+    GS_BUCKET_NAME = GCS_BUCKET_NAME
+    GS_DEFAULT_ACL = None        # public access handled via bucket IAM (allUsers → Object Viewer)
+    GS_QUERYSTRING_AUTH = False  # serve clean permanent URLs (no signed tokens)
+    if GCS_CREDENTIALS_FILE:
+        from google.oauth2 import service_account
+        GS_CREDENTIALS = service_account.Credentials.from_service_account_file(
+            GCS_CREDENTIALS_FILE
+        )
+    MEDIA_URL = f'https://storage.googleapis.com/{GCS_BUCKET_NAME}/media/'
+    GS_LOCATION = 'media'  # stores all uploaded files under the media/ prefix in the bucket
+    # Django 4.2+ requires STORAGES dict — DEFAULT_FILE_STORAGE no longer works
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+else:
+    # Fallback: local storage during development when bucket is not configured
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
