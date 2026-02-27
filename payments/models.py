@@ -21,6 +21,12 @@ class Transaction(models.Model):
     order_tracking_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     merchant_reference = models.CharField(max_length=255, unique=True)
     
+    TRANSACTION_TYPE_CHOICES = (
+        ('ORDER', 'Order Payment'),
+        ('TOPUP', 'Wallet Top-up'),
+    )
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES, default='ORDER')
+    
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     payment_method = models.CharField(max_length=50, null=True, blank=True)
     
@@ -52,3 +58,14 @@ class Withdrawal(models.Model):
 
     def __str__(self):
         return f"Withdrawal - {self.user.username} - {self.amount}"
+
+class Wallet(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wallet')
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    currency = models.CharField(max_length=3, default='UGX')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Wallet - {self.user.username} - {self.balance} {self.currency}"

@@ -6,8 +6,8 @@ from django.conf import settings
 import uuid
 import logging
 
-from .models import Transaction
-from .serializers import InitiatePaymentSerializer, TransactionSerializer, CartCheckoutSerializer
+from .models import Transaction, Wallet
+from .serializers import InitiatePaymentSerializer, TransactionSerializer, CartCheckoutSerializer, WalletSerializer
 from .pesapal_service import PesaPalService
 from edushop.models import Order, OrderItem, Product
 
@@ -36,6 +36,7 @@ class PaymentViewSet(viewsets.ViewSet):
                 amount=amount,
                 description=description,
                 merchant_reference=merchant_ref,
+                transaction_type='ORDER',
                 status='PENDING'
             )
             
@@ -87,6 +88,7 @@ class PaymentViewSet(viewsets.ViewSet):
             amount=total,
             description=f"Cart Checkout - {cart_items.count()} items",
             merchant_reference=merchant_ref,
+            transaction_type='ORDER',
             status='PENDING'
         )
         
@@ -202,8 +204,66 @@ class PesaPalIPNViewSet(viewsets.ViewSet):
                     
                     logger.info(f"Transaction {tracking_id} updated to {transaction.status}")
                     
+                    # 4. Handle Wallet Top-up if completed
+                    if transaction.status == 'COMPLETED' and transaction.transaction_type == 'TOPUP':
+                        try:
+                            wallet = transaction.user.wallet
+                            wallet.balance += transaction.amount
+                            wallet.save()
+                            logger.info(f"Wallet for user {transaction.user.username} topped up by {transaction.amount}")
+                        except Exception as e:
+                            logger.error(f"Failed to top up wallet for user {transaction.user.username}: {e}")
+                            
                 except Transaction.DoesNotExist:
                     logger.error(f"Transaction with tracking ID {tracking_id} not found")
             
         # PesaPal expects a response with the same parameters to acknowledge receipt
         return Response(request.query_params)
+
+class WalletViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request):
+        """Get current user's wallet info"""
+        wallet, created = Wallet.objects.get_or_create(user=request.user)
+        serializer = WalletSerializer(wallet)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def topup(self, request):
+        """Initiate wallet top-up"""
+        serializer = InitiatePaymentSerializer(data=request.data)
+        if serializer.is_valid():
+            amount = serializer.validated_data['amount']
+            description = serializer.validated_data.get('description', f"Wallet Top-up for {request.user.username}")
+            
+            # 1. Create top-up transaction
+            merchant_ref = f"WTU-{uuid.uuid4().hex[:8].upper()}"
+            transaction = Transaction.objects.create(
+                user=request.user,
+                amount=amount,
+                description=description,
+                merchant_reference=merchant_ref,
+                transaction_type='TOPUP',
+                status='PENDING'
+            )
+            
+            # 2. Get PesaPal Service
+            pesapal = PesaPalService()
+            
+            # 3. Submit Order
+            callback_url = getattr(settings, 'PESAPAL_CALLBACK_URL', 'http://localhost:5173/payment-success')
+            order_res = pesapal.submit_order(transaction, callback_url)
+            
+            if order_res and 'redirect_url' in order_res:
+                transaction.order_tracking_id = order_res['order_tracking_id']
+                transaction.save()
+                return Response({
+                    "redirect_url": order_res['redirect_url'],
+                    "merchant_reference": merchant_ref,
+                    "order_tracking_id": order_res['order_tracking_id']
+                })
+            
+            return Response({"error": "Failed to initiate top-up with PesaPal"}, status=500)
+            
+        return Response(serializer.errors, status=400)
