@@ -90,8 +90,9 @@ class OrderInline(admin.TabularInline):
 
 # User admin
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'role', 'is_staff', 'is_coach')
-    list_filter = ('role', 'is_staff', 'is_coach', 'is_superuser')
+    list_display = ('username', 'email', 'role', 'is_staff', 'is_coach', 'date_joined')
+    list_filter = ('role', 'is_staff', 'is_coach', 'is_superuser', 'date_joined')
+    ordering = ('-date_joined',)
     fieldsets = UserAdmin.fieldsets + (
         ('Role & Coach Status', {'fields': ('role', 'is_coach')}),
     )

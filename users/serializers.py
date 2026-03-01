@@ -8,7 +8,7 @@ User = get_user_model()
 class ProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.ReadOnlyField(source='user.first_name')
     last_name = serializers.ReadOnlyField(source='user.last_name')
-    role = serializers.ReadOnlyField(source='user.role')
+    role = serializers.ChoiceField(choices=User.ROLE_CHOICES, source='user.role')
     is_coach = serializers.ReadOnlyField(source='user.is_coach')
     wallet_balance = serializers.DecimalField(source='user.wallet.balance', max_digits=12, decimal_places=2, read_only=True)
 
@@ -16,6 +16,19 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ['bio', 'avatar', 'preferences', 'created_at', 'updated_at', 'first_name', 'last_name', 'role', 'is_coach', 'wallet_balance']
         read_only_fields = ['created_at', 'updated_at']
+
+    def update(self, instance, validated_data):
+        # Extract user data (nested in source)
+        user_data = validated_data.pop('user', {})
+        role = user_data.get('role')
+        
+        # Update user role if provided
+        if role:
+            instance.user.role = role
+            instance.user.save()
+            
+        # Update profile fields
+        return super().update(instance, validated_data)
 
 class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer(read_only=True)
