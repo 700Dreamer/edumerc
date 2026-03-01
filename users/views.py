@@ -44,6 +44,9 @@ class GoogleLoginView(APIView):
             return Response({'error': 'id_token is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            if not settings.GOOGLE_OAUTH2_CLIENT_ID:
+                return Response({'error': 'Backend Google configuration error: GOOGLE_OAUTH2_CLIENT_ID is not set.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             idinfo = id_token.verify_oauth2_token(
                 token, 
                 google_requests.Request(), 
