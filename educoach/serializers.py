@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange, CoachEarnings
+from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange, CoachEarnings, HMSSession, HMSPeer
 from django.db import transaction
 
 class CoachListSerializer(serializers.ModelSerializer):
@@ -220,3 +220,14 @@ class CoachEarningsSerializer(serializers.ModelSerializer):
             'amount', 'transaction_type', 'status', 
             'duration', 'price', 'date', 'created_at'
         ]
+
+class HMSPeerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HMSPeer
+        fields = ['peer_id', 'name', 'role', 'user_id', 'joined_at', 'left_at']
+
+class HMSSessionAttendanceSerializer(serializers.ModelSerializer):
+    peers = HMSPeerSerializer(many=True, read_only=True)
+    class Meta:
+        model = HMSSession
+        fields = ['id', 'room_id', 'active', 'created_at', 'ended_at', 'peers']

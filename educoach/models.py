@@ -260,4 +260,33 @@ def create_ledger_entry_on_withdrawal_save(sender, instance, **kwargs):
             except Exception:
                 # User might not have a coach profile or other issues
                 pass
-# update
+
+class HMSSession(models.Model):
+    id = models.CharField(max_length=100, primary_key=True, unique=True)
+    room_id = models.CharField(max_length=100)
+    internal_session = models.ForeignKey('CoachingSession', on_delete=models.SET_NULL, null=True, blank=True, related_name='hms_sessions')
+    customer_id = models.CharField(max_length=100)
+    app_id = models.CharField(max_length=100)
+    user_id = models.CharField(blank=True, max_length=100, null=True)
+    active = models.BooleanField(default=False)
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    ended_at = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return f"HMS Session {self.id} (Room: {self.room_id})"
+
+class HMSPeer(models.Model):
+    session = models.ForeignKey(HMSSession, on_delete=models.CASCADE, related_name='peers')
+    peer_id = models.CharField(max_length=100)
+    name = models.CharField(max_length=255)
+    role = models.CharField(max_length=100)
+    user_id = models.CharField(max_length=255)
+    joined_at = models.DateTimeField()
+    left_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ('session', 'peer_id')
+
+    def __str__(self):
+        return f"{self.name} ({self.role}) in {self.session.id}"

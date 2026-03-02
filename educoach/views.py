@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 from datetime import datetime, timedelta
 
 import uuid
-from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange, CoachEarnings
+from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange, CoachEarnings, HMSSession, HMSPeer
 from payments.models import Withdrawal, Transaction
 from payments.pesapal_service import PesaPalService
 from django.db.models import Sum
@@ -17,7 +17,7 @@ from .serializers import (
     CoachListSerializer, CoachDetailSerializer, 
     SessionSerializer, CoachSessionSerializer, SessionStatusUpdateSerializer,
     VirtualClassSerializer, ClassEnrollmentSerializer, CoachPromotionSerializer,
-    WeeklyAvailabilitySerializer, CoachEarningsSerializer
+    WeeklyAvailabilitySerializer, CoachEarningsSerializer, HMSSessionAttendanceSerializer
 )
 
 User = get_user_model()
@@ -305,6 +305,18 @@ class SessionViewSet(viewsets.ModelViewSet):
             
         return Response({"error": "Failed to initiate payment with PesaPal"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=True, methods=['get'], url_path='attendance')
+    def attendance(self, request, pk=None):
+        """Get HMS attendance data for a specific internal session."""
+        session = self.get_object()
+        hms_session = HMSSession.objects.filter(internal_session=session).order_by('-created_at').first()
+        
+        if not hms_session:
+            return Response({"detail": "No attendance data found for this session."}, status=status.HTTP_404_NOT_FOUND)
+            
+        serializer = HMSSessionAttendanceSerializer(hms_session)
+        return Response(serializer.data)
+
     def update_status_by_booking_id(self, request, booking_id=None):
         """
         Coach: update the status of a specific booking by booking_id.
@@ -477,3 +489,62 @@ class SmartSlotView(APIView):
             "duration_hours": duration_hours,
             "available_slots": valid_slots
         })
+
+class HMSWebhookView(APIView):
+    permission_classes = [permissions.AllowAny] # In production, verify signature
+
+    def post(self, request):
+        payload = request.data
+        event_type = payload.get('type')
+        data = payload.get('data')
+
+        if not data:
+            return Response({"detail": "No data in payload"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if event_type == 'session.close.success':
+            session_id = data.get('id')
+            room_id = data.get('room_id')
+            
+            # Try to find the internal session using the room_id
+            # We assume meeting_link contains the room_id (e.g., https://.../meeting/<room_id>)
+            internal_session = CoachingSession.objects.filter(
+                meeting_link__icontains=room_id
+            ).first()
+
+            hms_session, created = HMSSession.objects.update_or_create(
+                id=session_id,
+                defaults={
+                    'room_id': room_id,
+                    'internal_session': internal_session,
+                    'customer_id': data.get('customer_id'),
+                    'app_id': data.get('app_id'),
+                    'user_id': data.get('user_id'),
+                    'active': data.get('active', False),
+                    'created_at': data.get('created_at'),
+                    'updated_at': data.get('updated_at'),
+                    'ended_at': data.get('ended_at'),
+                }
+            )
+
+            # Auto-complete the internal coaching session if found
+            if internal_session and internal_session.status != 'completed':
+                internal_session.status = 'completed'
+                internal_session.save(update_fields=['status'])
+
+            peers_data = data.get('peers', {})
+            for p_id, p_data in peers_data.items():
+                HMSPeer.objects.update_or_create(
+                    session=hms_session,
+                    peer_id=p_id,
+                    defaults={
+                        'name': p_data.get('name'),
+                        'role': p_data.get('role'),
+                        'user_id': p_data.get('user_id'),
+                        'joined_at': p_data.get('joined_at'),
+                        'left_at': p_data.get('left_at'),
+                    }
+                )
+            
+            return Response({"status": "success", "session_id": session_id})
+
+        return Response({"status": "ignored", "event_type": event_type})

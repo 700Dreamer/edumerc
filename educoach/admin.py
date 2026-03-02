@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange, CoachEarnings
+from .models import Coach, CoachingSession, VirtualClass, ClassEnrollment, CoachAvailabilityRange, CoachEarnings, HMSSession, HMSPeer
 
 @admin.register(Coach)
 class CoachAdmin(admin.ModelAdmin):
@@ -30,3 +30,27 @@ class ClassEnrollmentAdmin(admin.ModelAdmin):
     list_display = ('student', 'virtual_class', 'enrolled_at', 'payment_reference')
     search_fields = ('student__username', 'virtual_class__title', 'payment_reference')
     list_filter = ('enrolled_at',)
+
+@admin.register(CoachEarnings)
+class CoachEarningsAdmin(admin.ModelAdmin):
+    list_display = ('coach', 'transaction_type', 'amount', 'status', 'date')
+    search_fields = ('coach__user__username', 'transaction_id')
+    list_filter = ('transaction_type', 'status', 'date')
+
+class HMSPeerInline(admin.TabularInline):
+    model = HMSPeer
+    extra = 0
+    readonly_fields = ('peer_id', 'name', 'role', 'user_id', 'joined_at', 'left_at')
+
+@admin.register(HMSSession)
+class HMSSessionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'room_id', 'active', 'created_at', 'ended_at')
+    search_fields = ('id', 'room_id')
+    list_filter = ('active', 'created_at')
+    inlines = [HMSPeerInline]
+
+@admin.register(HMSPeer)
+class HMSPeerAdmin(admin.ModelAdmin):
+    list_display = ('peer_id', 'name', 'role', 'session', 'joined_at', 'left_at')
+    search_fields = ('name', 'peer_id', 'user_id')
+    list_filter = ('role', 'joined_at')

@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     CoachViewSet, SessionViewSet, VirtualClassViewSet, 
-    PromoteCoachView, CoachAvailabilityView, SmartSlotView
+    PromoteCoachView, CoachAvailabilityView, SmartSlotView, HMSWebhookView
 )
 
 router = DefaultRouter()
@@ -18,4 +18,6 @@ urlpatterns = [
     
     path('appointments/', SessionViewSet.as_view({'get': 'my_appointments'}), name='coach-appointments'),
     path('appointments/<str:booking_id>/', SessionViewSet.as_view({'patch': 'update_status_by_booking_id'}), name='coach-appointments-update'),
+    
+    path('webhooks/100ms/', HMSWebhookView.as_view(), name='hms-webhook'),
 ]
