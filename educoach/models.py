@@ -263,14 +263,14 @@ def create_ledger_entry_on_withdrawal_save(sender, instance, **kwargs):
 
 class HMSSession(models.Model):
     id = models.CharField(max_length=100, primary_key=True, unique=True)
-    room_id = models.CharField(max_length=100)
+    room_id = models.CharField(max_length=100, null=True, blank=True)
     internal_session = models.ForeignKey('CoachingSession', on_delete=models.SET_NULL, null=True, blank=True, related_name='hms_sessions')
-    customer_id = models.CharField(max_length=100)
-    app_id = models.CharField(max_length=100)
+    customer_id = models.CharField(max_length=100, null=True, blank=True)
+    app_id = models.CharField(max_length=100, null=True, blank=True)
     user_id = models.CharField(blank=True, max_length=100, null=True)
     active = models.BooleanField(default=False)
-    created_at = models.DateTimeField()
-    updated_at = models.DateTimeField()
+    created_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):

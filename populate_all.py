@@ -16,7 +16,7 @@ def run_script(module_name, func_name=None):
         else:
             # If no function specified, assume it runs on import if protected by __main__
             # or try a default 'populate' or 'seed' function
-            for candidate in ['populate', 'seed', 'populate_schools', 'seed_educlubs', 'populate_clubs']:
+            for candidate in ['populate', 'seed', 'populate_schools']:
                 if hasattr(module, candidate):
                     getattr(module, candidate)()
                     return
@@ -34,9 +34,6 @@ if __name__ == "__main__":
     # populate_products doesn't have a function, it runs on import if path is set
     # but we are already in the same process, so we can just run its code or wrap it
     run_script('populate_products')
-    
-    # 3. EduClubs (Clubs)
-    run_script('seed_educlubs', 'seed_educlubs')
     
     # 4. EduCoach (Coaches, Sessions)
     run_script('populate_educoach', 'populate')

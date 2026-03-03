@@ -2,7 +2,6 @@ import random
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from edupedia.models import School, SchoolEvent, SchoolReview, SchoolGalleryImage, SchoolAdministrator
-from educlubs.models import Club, ClubCategory, Topic, Lesson, RoleModel
 from edushop.models import Category, Product, Bundle
 from edufundme.models import Scholarship, Campaign
 from eduquest.models import Material, MaterialOrder
@@ -152,44 +151,6 @@ class Command(BaseCommand):
                     rating=random.randint(4, 5), 
                     comment=f'I love studying at {school.name}. The environment is very supportive.'
                 )
-
-        # 3. Club Categories and Clubs
-        self.stdout.write('Creating clubs...')
-        tech_cat, _ = ClubCategory.objects.get_or_create(name='Technology', slug='technology')
-        arts_cat, _ = ClubCategory.objects.get_or_create(name='Arts & Culture', slug='arts-culture')
-        science_cat, _ = ClubCategory.objects.get_or_create(name='Science & Innovation', slug='science-innovation')
-
-        # Robotics
-        robotics_club, created = Club.objects.get_or_create(
-            name='Robotics & AI',
-            defaults={'category': tech_cat, 'description': 'Learn to build the future.'}
-        )
-        if created:
-            topic = Topic.objects.create(club=robotics_club, title='Introduction to Arduino', order=1)
-            Lesson.objects.create(topic=topic, title='Hello World: Blinking LED', text_content='Your first circuit.', order=1)
-            RoleModel.objects.create(club=robotics_club, name='Elon Musk', bio='Visionary Engineer', contribution='Space & AI')
-
-        # Drama Club
-        drama_club, created = Club.objects.get_or_create(
-            name='Drama & Performing Arts',
-            defaults={'category': arts_cat, 'description': 'Express yourself on stage.'}
-        )
-        if created:
-            topic = Topic.objects.create(club=drama_club, title='Stage Presence', order=1)
-            Lesson.objects.create(topic=topic, title='Body Language Basics', text_content='Mastering the stage.', order=1)
-            RoleModel.objects.create(club=drama_club, name='Viola Davis', bio='Academy Award Winner', contribution='Acting')
-
-        # Science Club
-        science_club, created = Club.objects.get_or_create(
-            name='Young Scientists',
-            defaults={'category': science_cat, 'description': 'Exploring the natural world.'}
-        )
-        if created:
-            topic = Topic.objects.create(club=science_club, title='Renewable Energy', order=1)
-            Lesson.objects.create(topic=topic, title='Solar Power Experiments', text_content='Harnessing the sun.', order=1)
-            RoleModel.objects.create(club=science_club, name='Katherine Johnson', bio='NASA Mathematician', contribution='Physics & Math')
-        
-        self.stdout.write('Clubs seeded.')
 
         # 4. Shop Categories and Products
         self.stdout.write('Creating shop items...')

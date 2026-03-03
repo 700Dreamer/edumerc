@@ -6,6 +6,8 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.db import transaction, models
 from django.contrib.auth import get_user_model
+from django.utils.dateparse import parse_datetime
+from django.utils import timezone
 from datetime import datetime, timedelta
 
 import uuid
@@ -499,52 +501,82 @@ class HMSWebhookView(APIView):
         data = payload.get('data')
 
         if not data:
-            return Response({"detail": "No data in payload"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "MISSING_DATA", "detail": "The webhook payload 'data' field is missing."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if event_type == 'session.close.success':
-            session_id = data.get('id')
-            room_id = data.get('room_id')
-            
-            # Try to find the internal session using the room_id
-            # We assume meeting_link contains the room_id (e.g., https://.../meeting/<room_id>)
-            internal_session = CoachingSession.objects.filter(
-                meeting_link__icontains=room_id
-            ).first()
+        # 100ms uses 'session_id' in webhooks and 'id' in some API responses. Handle both.
+        session_id = data.get('session_id') or data.get('id')
+        if not session_id:
+            # For some events, it might be in 'session_id' outside 'data'? No, usually inside.
+            return Response({"error": "MISSING_SESSION_ID", "detail": "Required field 'session_id' or 'id' is missing."}, status=status.HTTP_400_BAD_REQUEST)
+
+        room_id = data.get('room_id')
+
+        # Handle Session Events
+        if event_type in ['session.open.success', 'session.close.success']:
+            # Find the internal session
+            internal_session = None
+            if room_id:
+                internal_session = CoachingSession.objects.filter(meeting_link__icontains=room_id).first()
 
             hms_session, created = HMSSession.objects.update_or_create(
                 id=session_id,
                 defaults={
                     'room_id': room_id,
                     'internal_session': internal_session,
-                    'customer_id': data.get('customer_id'),
+                    'customer_id': data.get('customer_id') or data.get('account_id'),
                     'app_id': data.get('app_id'),
                     'user_id': data.get('user_id'),
-                    'active': data.get('active', False),
-                    'created_at': data.get('created_at'),
-                    'updated_at': data.get('updated_at'),
-                    'ended_at': data.get('ended_at'),
+                    'active': event_type == 'session.open.success',
+                    'created_at': parse_datetime(data.get('created_at', '')) if data.get('created_at') else (parse_datetime(data.get('session_started_at', '')) if data.get('session_started_at') else None),
+                    'updated_at': timezone.now(),
+                    'ended_at': parse_datetime(data.get('ended_at', '')) if data.get('ended_at') else (parse_datetime(data.get('session_stopped_at', '')) if data.get('session_stopped_at') else None),
                 }
             )
 
-            # Auto-complete the internal coaching session if found
-            if internal_session and internal_session.status != 'completed':
+            # Auto-complete the internal coaching session if found and session is closing
+            if event_type == 'session.close.success' and internal_session and internal_session.status != 'completed':
                 internal_session.status = 'completed'
                 internal_session.save(update_fields=['status'])
 
+            # If peers are provided in the payload (batch mode)
             peers_data = data.get('peers', {})
-            for p_id, p_data in peers_data.items():
+            if isinstance(peers_data, dict):
+                for p_id, p_data in peers_data.items():
+                    HMSPeer.objects.update_or_create(
+                        session=hms_session,
+                        peer_id=p_id,
+                        defaults={
+                            'name': p_data.get('name') or p_data.get('user_name'),
+                            'role': p_data.get('role'),
+                            'user_id': p_data.get('user_id'),
+                            'joined_at': p_data.get('joined_at'),
+                            'left_at': p_data.get('left_at'),
+                        }
+                    )
+            
+            return Response({"status": "success", "session_id": session_id, "event": event_type})
+
+        # Handle Peer Events
+        if event_type in ['peer.join.success', 'peer.leave.success']:
+            # Ensure the HMSSession exists
+            hms_session, _ = HMSSession.objects.get_or_create(
+                id=session_id,
+                defaults={'room_id': room_id, 'active': True}
+            )
+
+            peer_id = data.get('peer_id')
+            if peer_id:
                 HMSPeer.objects.update_or_create(
                     session=hms_session,
-                    peer_id=p_id,
+                    peer_id=peer_id,
                     defaults={
-                        'name': p_data.get('name'),
-                        'role': p_data.get('role'),
-                        'user_id': p_data.get('user_id'),
-                        'joined_at': p_data.get('joined_at'),
-                        'left_at': p_data.get('left_at'),
+                        'name': data.get('user_name') or data.get('name'),
+                        'role': data.get('role'),
+                        'user_id': data.get('user_id'),
+                        'joined_at': data.get('joined_at'),
+                        'left_at': data.get('left_at'),
                     }
                 )
-            
-            return Response({"status": "success", "session_id": session_id})
+            return Response({"status": "success", "peer_id": peer_id, "event": event_type})
 
         return Response({"status": "ignored", "event_type": event_type})

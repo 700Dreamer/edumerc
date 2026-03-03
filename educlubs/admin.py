@@ -1,116 +1,49 @@
 from django.contrib import admin
-from .models import (
-    MainCategory, SubjectLevel, SubjectClub, Topic, Lesson,
-    SocialGroup, SocialClub, ClubDiscussion,
-    TeacherCategory, TeacherClub, RoleModel, PracticalApplication, AskAIQuery
-)
+from .models import Section, Level, Subject, Topic, Subtopic, Lesson, Assessment
 
-# --- INLINE HELPERS ---
+@admin.register(Section)
+class SectionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description')
+    search_fields = ('name',)
 
-class LessonInline(admin.TabularInline):
-    model = Lesson
-    extra = 1
+@admin.register(Level)
+class LevelAdmin(admin.ModelAdmin):
+    list_display = ('name', 'section', 'order')
+    list_filter = ('section',)
+    search_fields = ('name',)
+    ordering = ('section', 'order')
 
-# --- SUBJECT INLINES ---
+@admin.register(Subject)
+class SubjectAdmin(admin.ModelAdmin):
+    list_display = ('name', 'level', 'order')
+    list_filter = ('level__section', 'level')
+    search_fields = ('name',)
+    ordering = ('level', 'order')
 
-class TopicSubjectInline(admin.StackedInline):
-    model = Topic
-    extra = 0
-    fk_name = 'subject_club'
-    inlines = [LessonInline]
+@admin.register(Topic)
+class TopicAdmin(admin.ModelAdmin):
+    list_display = ('title', 'subject', 'order')
+    list_filter = ('subject__level__section', 'subject__level', 'subject')
+    search_fields = ('title', 'description')
+    ordering = ('subject', 'order')
 
-class RoleModelSubjectInline(admin.TabularInline):
-    model = RoleModel
-    extra = 0
-    fk_name = 'subject_club'
+@admin.register(Subtopic)
+class SubtopicAdmin(admin.ModelAdmin):
+    list_display = ('title', 'topic', 'order')
+    list_filter = ('topic__subject__level', 'topic__subject', 'topic')
+    search_fields = ('title', 'description')
+    ordering = ('topic', 'order')
 
-class PracticalAppSubjectInline(admin.TabularInline):
-    model = PracticalApplication
-    extra = 0
-    fk_name = 'subject_club'
+@admin.register(Lesson)
+class LessonAdmin(admin.ModelAdmin):
+    list_display = ('title', 'subtopic', 'order', 'is_published')
+    list_filter = ('is_published', 'subtopic__topic__subject')
+    search_fields = ('title', 'content', 'objectives')
+    ordering = ('subtopic', 'order')
 
-class DiscussionSubjectInline(admin.TabularInline):
-    model = ClubDiscussion
-    extra = 0
-    fk_name = 'subject_club'
-
-# --- SOCIAL INLINES ---
-
-class TopicSocialInline(admin.StackedInline):
-    model = Topic
-    extra = 0
-    fk_name = 'social_club'
-    inlines = [LessonInline]
-
-class RoleModelSocialInline(admin.TabularInline):
-    model = RoleModel
-    extra = 0
-    fk_name = 'social_club'
-
-class PracticalAppSocialInline(admin.TabularInline):
-    model = PracticalApplication
-    extra = 0
-    fk_name = 'social_club'
-
-class DiscussionSocialInline(admin.TabularInline):
-    model = ClubDiscussion
-    extra = 0
-    fk_name = 'social_club'
-
-# --- TEACHER INLINES ---
-
-class TopicTeacherInline(admin.StackedInline):
-    model = Topic
-    extra = 0
-    fk_name = 'teacher_club'
-    inlines = [LessonInline]
-
-class RoleModelTeacherInline(admin.TabularInline):
-    model = RoleModel
-    extra = 0
-    fk_name = 'teacher_club'
-
-class DiscussionTeacherInline(admin.TabularInline):
-    model = ClubDiscussion
-    extra = 0
-    fk_name = 'teacher_club'
-
-# --- ADMIN REGISTRATIONS ---
-
-@admin.register(SubjectLevel)
-class SubjectLevelAdmin(admin.ModelAdmin):
-    list_display = ['name', 'order']
-
-@admin.register(SubjectClub)
-class SubjectClubAdmin(admin.ModelAdmin):
-    list_display = ['name', 'level', 'icon']
-    inlines = [TopicSubjectInline, RoleModelSubjectInline, PracticalAppSubjectInline, DiscussionSubjectInline]
-
-@admin.register(SocialGroup)
-class SocialGroupAdmin(admin.ModelAdmin):
-    list_display = ['name', 'icon']
-
-@admin.register(SocialClub)
-class SocialClubAdmin(admin.ModelAdmin):
-    list_display = ['name', 'group', 'facilitator', 'icon']
-    inlines = [TopicSocialInline, RoleModelSocialInline, PracticalAppSocialInline, DiscussionSocialInline]
-
-@admin.register(TeacherCategory)
-class TeacherCategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'is_administrative']
-
-@admin.register(TeacherClub)
-class TeacherClubAdmin(admin.ModelAdmin):
-    list_display = ['name', 'category', 'icon']
-    inlines = [TopicTeacherInline, RoleModelTeacherInline, DiscussionTeacherInline]
-
-@admin.register(MainCategory)
-class MainCategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug']
-
-admin.site.register(Topic)
-admin.site.register(Lesson)
-admin.site.register(RoleModel)
-admin.site.register(PracticalApplication)
-admin.site.register(ClubDiscussion)
-admin.site.register(AskAIQuery)
+@admin.register(Assessment)
+class AssessmentAdmin(admin.ModelAdmin):
+    list_display = ('title', 'lesson', 'order')
+    list_filter = ('lesson__subtopic__topic__subject',)
+    search_fields = ('title', 'description')
+    ordering = ('lesson', 'order')

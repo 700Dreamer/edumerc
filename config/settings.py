@@ -66,12 +66,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_filters',
     'storages',
     'rest_framework',
     'rest_framework_simplejwt',
     'users',
     'edushop',
-    'educlubs',
     'edufundme',
     'core',
     'eduquest',
@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     'payments',
     'educoach',
     'notifications',
+    'educlubs',
 ]
 
 MIDDLEWARE = [
