@@ -19,7 +19,7 @@ def test_registration():
 def test_login():
     url = f"{BASE_URL}/auth/login/"
     data = {
-        "username": "testuser_unique",
+        "email": "testunique@example.com",
         "password": "testpassword123"
     }
     response = requests.post(url, json=data)
