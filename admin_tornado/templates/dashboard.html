@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} | Edumerc Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .sidebar-active { background: rgba(255, 255, 255, 0.1); border-left: 4px solid #fff; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Revenue Chart
+        const revCtx = document.getElementById('revenueChart').getContext('2d');
+        new Chart(revCtx, {
+            type: 'line',
+            data: {
+                labels: {% raw revenue_labels_json %},
+                datasets: [{
+                    label: 'Revenue',
+                    data: {% raw revenue_data_json %},
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#4f46e5',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { borderDash: [5, 5] } }
+                }
+            }
+        });
+
+        // Growth Chart
+        const growthCtx = document.getElementById('growthChart').getContext('2d');
+        new Chart(growthCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {% raw signup_labels_json %},
+                datasets: [{
+                    data: [10, 15, 15, 6],
+                    backgroundColor: ['#e0e7ff', '#c7d2fe', '#818cf8', '#4f46e5'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+                cutout: '70%'
+            }
+        });
+    </script>
+</head>
+<body class="bg-gray-50 flex h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-indigo-900 text-white flex-shrink-0 flex flex-col">
+        <div class="p-6 text-2xl font-bold tracking-tight">
+            Edumerc<span class="text-indigo-400">Admin</span>
+        </div>
+        
+        <nav class="flex-1 px-4 py-4 space-y-1">
+            <a href="/" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg sidebar-active">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 p-1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                Dashboard
+            </a>
+            <a href="/users" class="flex items-center px-4 py-3 text-sm font-medium text-indigo-100 hover:bg-indigo-800 rounded-lg transition">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 15.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                Users & Roles
+            </a>
+            <a href="/shop" class="flex items-center px-4 py-3 text-sm font-medium text-indigo-100 hover:bg-indigo-800 rounded-lg transition">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                EduShop
+            </a>
+            <a href="/orders" class="flex items-center px-4 py-3 text-sm font-medium text-indigo-100 hover:bg-indigo-800 rounded-lg transition">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                Orders
+            </a>
+            <a href="/coach" class="flex items-center px-4 py-3 text-sm font-medium text-indigo-100 hover:bg-indigo-800 rounded-lg transition">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                EduCoach
+            </a>
+            <a href="/sessions" class="flex items-center px-4 py-3 text-sm font-medium text-indigo-100 hover:bg-indigo-800 rounded-lg transition">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                Sessions
+            </a>
+        </nav>
+
+        <div class="p-4 border-t border-indigo-800">
+            <div class="flex items-center">
+                <div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold">AD</div>
+                <div class="ml-3">
+                    <p class="text-xs font-semibold">Administrator</p>
+                    <p class="text-[10px] text-indigo-300">admin@edumerc.com</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <!-- Header -->
+        <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-8">
+            <div class="flex items-center bg-gray-100 px-4 py-2 rounded-xl w-96">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <input type="text" placeholder="Search for anything..." class="bg-transparent border-none focus:ring-0 ml-2 text-sm w-full">
+            </div>
+            <div class="flex items-center space-x-4">
+                <button class="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                </button>
+                <div class="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold ring-2 ring-white shadow-sm">K</div>
+            </div>
+        </header>
+
+        <!-- Page Scrollable Area -->
+        <div class="flex-1 overflow-y-auto p-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">Welcome back, Admin!</h2>
+            <p class="text-gray-500 mb-8">Here's what's happening with Edumerc today.</p>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Stat Card 1 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-default">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-3 bg-indigo-50 rounded-xl text-indigo-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full uppercase tracking-wider">Live</span>
+                    </div>
+                    <p class="text-sm text-gray-400 font-semibold uppercase tracking-wider">Total Revenue</p>
+                    <h3 class="text-2xl font-bold text-gray-800">{{ total_revenue }}</h3>
+                </div>
+                <!-- Stat Card 2 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-default">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-3 bg-blue-50 rounded-xl text-blue-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                        <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full uppercase tracking-wider">Active</span>
+                    </div>
+                    <p class="text-sm text-gray-400 font-semibold uppercase tracking-wider">Students</p>
+                    <h3 class="text-2xl font-bold text-gray-800">{{ user_count }}</h3>
+                </div>
+                <!-- Stat Card 3 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-default">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-3 bg-pink-50 rounded-xl text-pink-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                        </div>
+                        <span class="text-xs font-bold text-pink-600 bg-pink-50 px-2 py-1 rounded-full uppercase tracking-wider">Stock</span>
+                    </div>
+                    <p class="text-sm text-gray-400 font-semibold uppercase tracking-wider">Products</p>
+                    <h3 class="text-2xl font-bold text-gray-800">{{ product_count }}</h3>
+                </div>
+                <!-- Stat Card 4 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-default">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-3 bg-amber-50 rounded-xl text-amber-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full uppercase tracking-wider">Booked</span>
+                    </div>
+                    <p class="text-sm text-gray-400 font-semibold uppercase tracking-wider">Sessions</p>
+                    <h3 class="text-2xl font-bold text-gray-800">{{ class_bookings }}</h3>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                <!-- Main Chart -->
+                <div class="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-lg font-bold text-gray-800">Revenue Overview</h3>
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 bg-indigo-600 rounded-full"></span>
+                            <span class="text-sm text-gray-500 font-medium">Weekly Sales</span>
+                        </div>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Side Analytics -->
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-6">User Growth</h3>
+                    <div class="h-64 flex flex-col items-center justify-center">
+                        <canvas id="growthChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity Table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-6 border-b border-gray-50 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-gray-800">Recent Transactions</h3>
+                    <a href="/orders" class="text-indigo-600 text-sm font-semibold hover:underline">View All</a>
+                </div>
+                <div class="h-64 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-xl m-6">
+                    <p class="text-gray-400">Data visualization and main table will appear here.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
