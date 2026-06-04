@@ -9,8 +9,13 @@ from google.auth.transport.requests import Request
 
 class GmailService:
     def __init__(self):
-        self.creds = self._get_credentials()
-        self.service = build('gmail', 'v1', credentials=self.creds)
+        try:
+            self.creds = self._get_credentials()
+            self.service = build('gmail', 'v1', credentials=self.creds)
+        except Exception as e:
+            print(f"Failed to initialize GmailService: {e}")
+            self.creds = None
+            self.service = None
 
     def _get_credentials(self):
         token_json = os.getenv("GMAIL_TOKEN_JSON")
@@ -32,6 +37,10 @@ class GmailService:
         return creds
 
     def send_email(self, to, subject, body, is_html=False):
+        if not self.service:
+            print("GmailService not initialized, cannot send email.")
+            return None
+
         try:
             if is_html:
                 message = MIMEText(body, 'html')

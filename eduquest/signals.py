@@ -5,14 +5,13 @@ from notifications.services import GmailService
 
 @receiver(post_save, sender=MaterialOrder)
 def material_order_notification_signal(sender, instance, created, **kwargs):
-    gmail = GmailService()
-    
     # We only notify when the status changes after creation
     if not created:
         user_email = instance.email or instance.user.email # Fallback to user email if order email is blank
         if not user_email:
             return  # Can't notify without an email
 
+        gmail = GmailService()
         user_name = instance.user.get_full_name() or instance.user.username
 
         if instance.status == 'APPROVED':
