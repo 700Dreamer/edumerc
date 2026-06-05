@@ -113,9 +113,7 @@ class GmailService:
                     <h2 style="margin: 0; color: #1a202c; font-size: 20px;">{title}</h2>
                 </div>
                 <div style="padding: 30px; text-align: center;">
-                    <div style="width: 60px; height: 60px; background: #e8f5e9; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; text-align: center; line-height: 60px;">
-                        <span style="color: #27ae60; font-size: 30px; font-weight: bold;">✓</span>
-                    </div>
+                    <div style="width: 60px; height: 60px; background: #e8f5e9; border-radius: 50%; display: inline-block; text-align: center; line-height: 60px; margin-bottom: 20px; color: #27ae60; font-size: 30px; font-weight: bold; vertical-align: middle;">✓</div>
                     <p style="color: #4a5568; line-height: 1.5; margin: 0; text-align: center;">{message}</p>
                     
                     <div style="background: #f8f9fa; border-radius: 15px; padding: 20px; text-align: left; margin-top: 20px;">

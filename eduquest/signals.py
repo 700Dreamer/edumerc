@@ -30,7 +30,7 @@ def material_order_notification_signal(sender, instance, created, **kwargs):
                 message=message,
                 details=details,
                 button_text="Go to Dashboard",
-                button_url="https://edumerc.up.railway.app/dashboard",
+                button_url="https://edumerc-custom.vercel.app/profile?tab=quest",
                 status="Approved"
             )
             gmail.send_email(user_email, subject, html_body, is_html=True)
