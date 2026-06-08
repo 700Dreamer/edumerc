@@ -20,6 +20,8 @@ from django.conf.urls.static import static
 
 from django.contrib import admin
 from django.urls import path, include
+from django.views.decorators.csrf import csrf_exempt
+from graphene_django.views import GraphQLView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -31,6 +33,7 @@ urlpatterns = [
     path('api/v1/quest/', include('eduquest.urls')),
     path('api/v1/coach/', include('educoach.urls')),
     path('api/v1/clubs/', include('educlubs.urls')),
+    path('graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True))),
 ]
 
 

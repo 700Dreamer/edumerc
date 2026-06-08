@@ -98,3 +98,8 @@ class Assessment(models.Model):
 
     def __str__(self):
         return self.title
+
+# ---- New Club‑related models -------------------------------------------------
+
+# Import for the new models defined in a separate file
+from .club_models import *  # noqa: F401,F403

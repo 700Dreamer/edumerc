@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Section, Level, Subject, Topic, Subtopic, Lesson, Assessment
+from .models import Section, Level, Subject, Topic, Subtopic, Lesson, Assessment, Question, Choice
 
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,10 +38,24 @@ class LessonSerializer(serializers.ModelSerializer):
             'video_url', 'duration_minutes', 'order', 'is_published'
         ]
 
+class ChoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Choice
+        fields = ['id', 'text', 'is_correct']
+
+class QuestionSerializer(serializers.ModelSerializer):
+    choices = ChoiceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Question
+        fields = ['id', 'text', 'choices', 'order']
+
 class AssessmentSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True, read_only=True)
+
     class Meta:
         model = Assessment
-        fields = ['id', 'title', 'lesson', 'description', 'order']
+        fields = ['id', 'title', 'lesson', 'description', 'order', 'questions']
 
 # Nested Serializers for Breadcrumb/Detail views
 class LessonDetailSerializer(serializers.ModelSerializer):
@@ -75,3 +89,117 @@ class SubjectDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
         fields = ['id', 'name', 'level', 'description', 'order', 'topics']
+
+# ---------------------------------------------------------------------------
+# Club‑related serializers
+# ---------------------------------------------------------------------------
+
+from .club_models import Club, Note, RoleModel, PracticalProject, DiscussionMessage
+
+class ClubSerializer(serializers.ModelSerializer):
+    level_name = serializers.ReadOnlyField(source='level.name')
+    class Meta:
+        model = Club
+        fields = ['id', 'name', 'icon', 'description', 'level', 'level_name', 'type', 'popular']
+
+class NoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Note
+        fields = ['id', 'header', 'content', 'created_at']
+
+class RoleModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RoleModel
+        fields = ['id', 'name', 'contribution', 'image']
+
+class PracticalProjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PracticalProject
+        fields = ['id', 'title', 'description', 'steps', 'guide_url']
+
+class DiscussionMessageSerializer(serializers.ModelSerializer):
+    club = serializers.PrimaryKeyRelatedField(queryset=Club.objects.all(), required=False)
+    message = serializers.CharField(source='comment', required=False)
+    comment = serializers.CharField(required=False)
+    user = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DiscussionMessage
+        fields = ['id', 'club', 'user', 'comment', 'message', 'time']
+
+    def get_user(self, obj):
+        return obj.user.username if obj.user else "Anonymous"
+
+    def validate(self, attrs):
+        if 'comment' not in attrs and 'message' in attrs:
+            attrs['comment'] = attrs['message']
+        return attrs
+
+# Nested ClubDetailSerializer – re‑uses the existing curriculum serializers
+class ClubDetailSerializer(serializers.ModelSerializer):
+    level = LevelSerializer(read_only=True)
+    notes = NoteSerializer(many=True, read_only=True)
+    roleModels = RoleModelSerializer(many=True, read_only=True, source='role_models')
+    practical = PracticalProjectSerializer(read_only=True)
+    discussion = DiscussionMessageSerializer(many=True, read_only=True)
+    curriculum = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Club
+        fields = [
+            'id', 'name', 'icon', 'description', 'type', 'popular',
+            'level', 'notes', 'roleModels', 'practical', 'discussion',
+            'curriculum'
+        ]
+
+    def get_curriculum(self, obj):
+        subject = obj.subject
+        if not subject:
+            subject = obj.level.subjects.filter(name__icontains=obj.name).first()
+        if not subject:
+            # Fallback to first subject if name doesn't match
+            subject = obj.level.subjects.first()
+        if not subject:
+            return []
+
+        data = []
+        for topic in subject.topics.all().order_by('order'):
+            lessons_data = []
+            for subtopic in topic.subtopics.all().order_by('order'):
+                for lesson in subtopic.lessons.all().order_by('order'):
+                    # Retrieve assessments for this lesson
+                    assessments_data = []
+                    for assessment in lesson.assessments.all():
+                        questions_data = []
+                        for question in assessment.questions.all().order_by('order'):
+                            choices_data = []
+                            for choice in question.choices.all():
+                                choices_data.append({
+                                    'id': choice.id,
+                                    'text': choice.text,
+                                    'is_correct': choice.is_correct
+                                })
+                            questions_data.append({
+                                'id': question.id,
+                                'text': question.text,
+                                'choices': choices_data
+                              })
+                        assessments_data.append({
+                            'id': assessment.id,
+                            'title': assessment.title,
+                            'description': assessment.description,
+                            'questions': questions_data
+                        })
+                    
+                    lessons_data.append({
+                        'title': lesson.title,
+                        'type': 'Interactive Quiz' if lesson.assessments.exists() else ('Video Lesson' if lesson.video_url else 'Reading Material'),
+                        'duration': f"{lesson.duration_minutes}m" if lesson.duration_minutes else "15m",
+                        'content': lesson.content,
+                        'assessments': assessments_data
+                    })
+            data.append({
+                'title': topic.title,
+                'lessons': lessons_data
+            })
+        return data

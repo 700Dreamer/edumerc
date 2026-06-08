@@ -82,7 +82,12 @@ INSTALLED_APPS = [
     'educoach',
     'notifications',
     'educlubs',
+    'graphene_django',
 ]
+
+GRAPHENE = {
+    "SCHEMA": "config.schema.schema"
+}
 
 MIDDLEWARE = [
 

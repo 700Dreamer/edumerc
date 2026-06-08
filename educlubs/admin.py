@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Section, Level, Subject, Topic, Subtopic, Lesson, Assessment
+from .club_models import Club, Note, RoleModel, PracticalProject, DiscussionMessage
 
 @admin.register(Section)
 class SectionAdmin(admin.ModelAdmin):
@@ -47,3 +48,32 @@ class AssessmentAdmin(admin.ModelAdmin):
     list_filter = ('lesson__subtopic__topic__subject',)
     search_fields = ('title', 'description')
     ordering = ('lesson', 'order')
+
+@admin.register(Club)
+class ClubAdmin(admin.ModelAdmin):
+    list_display = ('name', 'level', 'type', 'popular')
+    list_filter = ('type', 'popular', 'level__section')
+    search_fields = ('name', 'description')
+    ordering = ('name',)
+@admin.register(Note)
+class NoteAdmin(admin.ModelAdmin):
+    list_display = ('header', 'club', 'created_at')
+    list_filter = ('club',)
+    search_fields = ('header', 'content')
+    ordering = ('-created_at',)
+@admin.register(RoleModel)
+class RoleModelAdmin(admin.ModelAdmin):
+    list_display = ('name', 'club')
+    search_fields = ('name', 'contribution')
+    ordering = ('name',)
+@admin.register(PracticalProject)
+class PracticalProjectAdmin(admin.ModelAdmin):
+    list_display = ('title', 'club')
+    search_fields = ('title', 'description')
+    ordering = ('title',)
+@admin.register(DiscussionMessage)
+class DiscussionMessageAdmin(admin.ModelAdmin):
+    list_display = ('user', 'club', 'time')
+    list_filter = ('club',)
+    search_fields = ('user', 'comment')
+    ordering = ('-time',)

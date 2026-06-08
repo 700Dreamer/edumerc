@@ -80,3 +80,110 @@ class AssessmentViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['lesson']
     ordering_fields = ['order', 'title']
+
+# ---------------------------------------------------------------------------
+# Club endpoints (public, no auth required)
+# ---------------------------------------------------------------------------
+
+from .club_models import Club
+from .serializers import ClubSerializer, ClubDetailSerializer
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from rest_framework import status
+
+class ClubPagination(PageNumberPagination):
+    page_size = 12
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class ClubListAPIView(viewsets.ReadOnlyModelViewSet):
+    """Paginated list of clubs and retrieve detail. Public – allow any."""
+    permission_classes = [permissions.AllowAny]
+    pagination_class = ClubPagination
+
+    def get_queryset(self):
+        if self.action == 'retrieve':
+            return Club.objects.prefetch_related(
+                'notes',
+                'role_models',
+                'practical',
+                'discussion',
+                'level__subjects__topics__subtopics__lessons__assessments'
+            ).select_related('level').all()
+            
+        queryset = Club.objects.select_related('level').all()
+        subcategory_id = self.request.query_params.get('subcategory_id')
+        club_type = self.request.query_params.get('type')
+        if subcategory_id:
+            queryset = queryset.filter(level_id=subcategory_id)
+        if club_type:
+            queryset = queryset.filter(type=club_type)
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return ClubDetailSerializer
+        return ClubSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        # Optional filtering based on ?type=
+        club_type = request.query_params.get('type')
+        if club_type and club_type != instance.type:
+            # Return empty sections for mismatched type
+            for key in ['curriculum', 'notes', 'roleModels', 'practical', 'discussion']:
+                data[key] = [] if isinstance(data.get(key), list) else None
+        return Response(data, status=status.HTTP_200_OK)
+
+
+from rest_framework.views import APIView
+from .club_models import DiscussionMessage
+from .serializers import DiscussionMessageSerializer
+
+class MainCategoriesView(APIView):
+    permission_classes = [permissions.AllowAny]
+    def get(self, request):
+        data = [
+            { "id": 1, "name": "Subject Clubs", "description": "Academic mastery." },
+            { "id": 2, "name": "Social Clubs", "description": "Hobbies and arts.", "comingSoon": True },
+            { "id": 3, "name": "Teacher Clubs", "description": "Collaboration." }
+        ]
+        return Response(data, status=status.HTTP_200_OK)
+
+class SubCategoriesView(APIView):
+    permission_classes = [permissions.AllowAny]
+    def get(self, request):
+        from .models import Level
+        levels = Level.objects.all().order_by('order')
+        data = [{'id': level.id, 'name': level.name} for level in levels]
+        return Response(data, status=status.HTTP_200_OK)
+
+class AIAssistView(APIView):
+    permission_classes = [permissions.AllowAny]
+    def post(self, request):
+        query = request.data.get('query', '').lower()
+        if 'photosynthesis' in query:
+            response_text = "Photosynthesis is the process used by plants to convert light energy into chemical energy. In desert plants, this often happens via CAM photosynthesis to conserve water."
+        elif 'artery' in query or 'vein' in query:
+            response_text = "Arteries carry oxygenated blood away from the heart to the body, whereas veins carry deoxygenated blood back to the heart."
+        elif 'equation' in query:
+            response_text = "An equation is a mathematical statement asserting the equality of two expressions. To solve, perform the same operation on both sides."
+        else:
+            response_text = "That is a great question! Based on the curriculum context for this club, you should focus on the core concepts, definitions, and practical examples outlined in the modules."
+        return Response({"response": response_text}, status=status.HTTP_200_OK)
+
+class DiscussionMessageViewSet(viewsets.ModelViewSet):
+    queryset = DiscussionMessage.objects.select_related('user').all()
+    serializer_class = DiscussionMessageSerializer
+    permission_classes = [permissions.AllowAny]
+    http_method_names = ['get', 'post']
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if not user or user.is_anonymous:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.filter(is_superuser=True).first() or User.objects.first()
+        serializer.save(user=user)
