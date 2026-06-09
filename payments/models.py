@@ -24,6 +24,7 @@ class Transaction(models.Model):
     TRANSACTION_TYPE_CHOICES = (
         ('ORDER', 'Order Payment'),
         ('TOPUP', 'Wallet Top-up'),
+        ('CLUB', 'Club Subscription'),
     )
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES, default='ORDER')
     

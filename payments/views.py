@@ -202,6 +202,22 @@ class PesaPalIPNViewSet(viewsets.ViewSet):
                             session.save()
                             logger.info(f"CoachingSession {session.booking_id} payment_status updated to {session.payment_status}")
                     
+                    # Update linked ClubSubscriptions
+                    if hasattr(transaction, 'club_subscriptions') and transaction.club_subscriptions.exists():
+                        from django.utils import timezone
+                        from datetime import timedelta
+                        for subscription in transaction.club_subscriptions.all():
+                            if transaction.status == 'COMPLETED':
+                                subscription.status = 'active'
+                                if subscription.club.subscription_duration_days > 0:
+                                    subscription.expires_at = timezone.now() + timedelta(days=subscription.club.subscription_duration_days)
+                                else:
+                                    subscription.expires_at = None
+                            elif transaction.status in ['FAILED', 'REVERSED', 'INVALID']:
+                                subscription.status = 'cancelled'
+                            subscription.save()
+                            logger.info(f"ClubSubscription {subscription.id} status updated to {subscription.status}")
+
                     logger.info(f"Transaction {tracking_id} updated to {transaction.status}")
                     
                     # 4. Handle Wallet Top-up if completed

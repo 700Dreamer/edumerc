@@ -81,12 +81,41 @@ class ClubType(DjangoObjectType):
     curriculum = GenericScalar()
     role_models = graphene.List(RoleModelType)
     discussion = graphene.List(DiscussionMessageType)
+    notes = graphene.List(NoteType)
+    practical = graphene.Field(PracticalProjectType)
+    is_subscribed = graphene.Boolean()
+    price = graphene.Float()
+    subscription_duration_days = graphene.Int()
 
     class Meta:
         model = Club
-        fields = ("id", "name", "icon", "description", "level", "subject", "type", "popular", "notes", "practical")
+        fields = ("id", "name", "icon", "description", "level", "subject", "type", "popular", "notes", "practical", "price", "subscription_duration_days", "is_subscribed")
+
+    def _get_is_subscribed(self, info):
+        user = info.context.user
+        if not user or user.is_anonymous:
+            return False
+        from django.utils import timezone
+        from django.db.models import Q
+        return user.is_superuser or self.subscriptions.filter(
+            user=user,
+            status='active'
+        ).filter(
+            Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True)
+        ).exists()
+
+    def resolve_is_subscribed(self, info):
+        return self._get_is_subscribed(info)
+
+    def resolve_price(self, info):
+        return self.price
+
+    def resolve_subscription_duration_days(self, info):
+        return self.subscription_duration_days
 
     def resolve_curriculum(self, info):
+        is_sub = self._get_is_subscribed(info)
+        
         subject = self.subject
         if not subject:
             subject = self.level.subjects.filter(name__icontains=self.name).first()
@@ -100,36 +129,47 @@ class ClubType(DjangoObjectType):
             lessons_data = []
             for subtopic in topic.subtopics.all().order_by('order'):
                 for lesson in subtopic.lessons.all().order_by('order'):
-                    assessments_data = []
-                    for assessment in lesson.assessments.all():
-                        questions_data = []
-                        for question in assessment.questions.all().order_by('order'):
-                            choices_data = []
-                            for choice in question.choices.all():
-                                choices_data.append({
-                                    'id': choice.id,
-                                    'text': choice.text,
-                                    'is_correct': choice.is_correct
+                    if is_sub:
+                        assessments_data = []
+                        for assessment in lesson.assessments.all():
+                            questions_data = []
+                            for question in assessment.questions.all().order_by('order'):
+                                choices_data = []
+                                for choice in question.choices.all():
+                                    choices_data.append({
+                                        'id': choice.id,
+                                        'text': choice.text,
+                                        'is_correct': choice.is_correct
+                                    })
+                                questions_data.append({
+                                    'id': question.id,
+                                    'text': question.text,
+                                    'choices': choices_data
                                 })
-                            questions_data.append({
-                                'id': question.id,
-                                'text': question.text,
-                                'choices': choices_data
+                            assessments_data.append({
+                                    'id': assessment.id,
+                                    'title': assessment.title,
+                                    'description': assessment.description,
+                                    'questions': questions_data
                             })
-                        assessments_data.append({
-                            'id': assessment.id,
-                            'title': assessment.title,
-                            'description': assessment.description,
-                            'questions': questions_data
+                        
+                        lessons_data.append({
+                            'title': lesson.title,
+                            'type': 'Interactive Quiz' if lesson.assessments.exists() else ('Video Lesson' if lesson.video_url else 'Reading Material'),
+                            'duration': f"{lesson.duration_minutes}m" if lesson.duration_minutes else "15m",
+                            'content': lesson.content,
+                            'video_url': lesson.video_url,
+                            'assessments': assessments_data
                         })
-                    
-                    lessons_data.append({
-                        'title': lesson.title,
-                        'type': 'Interactive Quiz' if lesson.assessments.exists() else ('Video Lesson' if lesson.video_url else 'Reading Material'),
-                        'duration': f"{lesson.duration_minutes}m" if lesson.duration_minutes else "15m",
-                        'content': lesson.content,
-                        'assessments': assessments_data
-                    })
+                    else:
+                        lessons_data.append({
+                            'title': lesson.title,
+                            'type': 'Interactive Quiz' if lesson.assessments.exists() else ('Video Lesson' if lesson.video_url else 'Reading Material'),
+                            'duration': f"{lesson.duration_minutes}m" if lesson.duration_minutes else "15m",
+                            'content': None,
+                            'video_url': None,
+                            'assessments': []
+                        })
             data.append({
                 'title': topic.title,
                 'lessons': lessons_data
@@ -137,10 +177,25 @@ class ClubType(DjangoObjectType):
         return data
 
     def resolve_role_models(self, info):
+        if not self._get_is_subscribed(info):
+            return []
         return self.role_models.all()
 
     def resolve_discussion(self, info):
+        if not self._get_is_subscribed(info):
+            return []
         return self.discussion.all().order_by("-time")
+
+    def resolve_notes(self, info):
+        if not self._get_is_subscribed(info):
+            return self.notes.none()
+        return self.notes.all()
+
+    def resolve_practical(self, info):
+        if not self._get_is_subscribed(info):
+            return None
+        return getattr(self, 'practical', None)
+
 
 class Query(graphene.ObjectType):
     all_clubs = graphene.List(
@@ -195,11 +250,25 @@ class PostDiscussionMessage(graphene.Mutation):
         except Club.DoesNotExist:
             raise Exception("Club not found")
 
+        # Check subscription
+        from django.utils import timezone
+        from django.db.models import Q
+        is_sub = user.is_superuser or club.subscriptions.filter(
+            user=user,
+            status='active'
+        ).filter(
+            Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True)
+        ).exists()
+        
+        if not is_sub:
+            raise Exception("You must pay and join this club to participate in the discussions.")
+
         msg = DiscussionMessage.objects.create(
             club=club,
             user=user,
             comment=comment
         )
+
         return PostDiscussionMessage(success=True, message=msg)
 
 class Mutation(graphene.ObjectType):

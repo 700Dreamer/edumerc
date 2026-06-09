@@ -1,7 +1,7 @@
 import requests
 import json
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "https://edumerc.up.railway.app"
 
 def test_registration():
     url = f"{BASE_URL}/auth/register/"

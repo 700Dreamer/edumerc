@@ -29,6 +29,8 @@ class Club(models.Model):
         max_length=10, choices=ClubType.choices, default=ClubType.SUBJECT
     )
     popular = models.BooleanField(default=False, help_text=_("Show popular badge"))
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=5000.00)
+    subscription_duration_days = models.IntegerField(default=90, help_text=_("Subscription duration in days, 0 for lifetime"))
 
     class Meta:
         verbose_name = _("Club")
@@ -132,3 +134,40 @@ class Choice(models.Model):
 
     def __str__(self):
         return f"{self.text} (Correct: {self.is_correct})"
+
+
+class ClubSubscription(models.Model):
+    STATUS_CHOICES = (
+        ("pending", "Pending"),
+        ("active", "Active"),
+        ("expired", "Expired"),
+        ("cancelled", "Cancelled"),
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="club_subscriptions",
+    )
+    club = models.ForeignKey(
+        Club, on_delete=models.CASCADE, related_name="subscriptions"
+    )
+    transaction = models.ForeignKey(
+        "payments.Transaction",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="club_subscriptions",
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("user", "club")
+        verbose_name = _("Club Subscription")
+        verbose_name_plural = _("Club Subscriptions")
+
+    def __str__(self):
+        return f"{self.user.username} - {self.club.name} - {self.status}"
+

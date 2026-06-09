@@ -94,13 +94,29 @@ class SubjectDetailSerializer(serializers.ModelSerializer):
 # Club‑related serializers
 # ---------------------------------------------------------------------------
 
-from .club_models import Club, Note, RoleModel, PracticalProject, DiscussionMessage
+from .club_models import Club, Note, RoleModel, PracticalProject, DiscussionMessage, ClubSubscription
 
 class ClubSerializer(serializers.ModelSerializer):
     level_name = serializers.ReadOnlyField(source='level.name')
+    is_subscribed = serializers.SerializerMethodField()
+    price = serializers.ReadOnlyField()
+
     class Meta:
         model = Club
-        fields = ['id', 'name', 'icon', 'description', 'level', 'level_name', 'type', 'popular']
+        fields = ['id', 'name', 'icon', 'description', 'level', 'level_name', 'type', 'popular', 'price', 'is_subscribed', 'subscription_duration_days']
+
+    def get_is_subscribed(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user or request.user.is_anonymous:
+            return False
+        from django.utils import timezone
+        from django.db.models import Q
+        return request.user.is_superuser or obj.subscriptions.filter(
+            user=request.user,
+            status='active'
+        ).filter(
+            Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True)
+        ).exists()
 
 class NoteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -143,14 +159,30 @@ class ClubDetailSerializer(serializers.ModelSerializer):
     practical = PracticalProjectSerializer(read_only=True)
     discussion = DiscussionMessageSerializer(many=True, read_only=True)
     curriculum = serializers.SerializerMethodField()
+    is_subscribed = serializers.SerializerMethodField()
+    price = serializers.ReadOnlyField()
 
     class Meta:
         model = Club
         fields = [
             'id', 'name', 'icon', 'description', 'type', 'popular',
             'level', 'notes', 'roleModels', 'practical', 'discussion',
-            'curriculum'
+            'curriculum', 'price', 'is_subscribed', 'subscription_duration_days'
         ]
+
+    def get_is_subscribed(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user or request.user.is_anonymous:
+            return False
+        from django.utils import timezone
+        from django.db.models import Q
+        return request.user.is_superuser or obj.subscriptions.filter(
+            user=request.user,
+            status='active'
+        ).filter(
+            Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True)
+        ).exists()
+
 
     def get_curriculum(self, obj):
         subject = obj.subject
@@ -203,3 +235,33 @@ class ClubDetailSerializer(serializers.ModelSerializer):
                 'lessons': lessons_data
             })
         return data
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        is_subscribed = ret.get('is_subscribed', False)
+        if not is_subscribed:
+            ret['notes'] = []
+            ret['roleModels'] = []
+            ret['practical'] = None
+            ret['discussion'] = []
+            
+            if 'curriculum' in ret and isinstance(ret['curriculum'], list):
+                preview_curriculum = []
+                for topic in ret['curriculum']:
+                    preview_lessons = []
+                    for lesson in topic.get('lessons', []):
+                        preview_lessons.append({
+                            'title': lesson.get('title'),
+                            'type': lesson.get('type'),
+                            'duration': lesson.get('duration'),
+                            'content': None,
+                            'video_url': None,
+                            'assessments': []
+                        })
+                    preview_curriculum.append({
+                        'title': topic.get('title'),
+                        'lessons': preview_lessons
+                    })
+                ret['curriculum'] = preview_curriculum
+        return ret
+

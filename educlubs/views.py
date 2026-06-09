@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, filters
+from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Section, Level, Subject, Topic, Subtopic, Lesson, Assessment
 from .serializers import (
@@ -137,6 +138,71 @@ class ClubListAPIView(viewsets.ReadOnlyModelViewSet):
                 data[key] = [] if isinstance(data.get(key), list) else None
         return Response(data, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='join')
+    def join(self, request, pk=None):
+        club = self.get_object()
+        user = request.user
+        
+        # 1. Check if user already has an active subscription
+        from django.utils import timezone
+        from django.db.models import Q
+        active_sub = club.subscriptions.filter(user=user, status='active').filter(
+            Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True)
+        ).first()
+        
+        if active_sub:
+            return Response({"error": "You are already a member of this club."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # 2. Check if there's a pending subscription with an active/pending transaction to avoid duplicates
+        pending_sub = club.subscriptions.filter(user=user, status='pending').first()
+        if pending_sub and pending_sub.transaction and pending_sub.transaction.status == 'PENDING' and pending_sub.transaction.order_tracking_id:
+            transaction_obj = pending_sub.transaction
+        else:
+            # Create new Transaction
+            import uuid
+            from payments.models import Transaction
+            merchant_ref = f"EC-CLUB-{uuid.uuid4().hex[:8].upper()}"
+            transaction_obj = Transaction.objects.create(
+                user=user,
+                amount=club.price,
+                description=f"Subscription for Club: {club.name}",
+                merchant_reference=merchant_ref,
+                transaction_type='CLUB',
+                status='PENDING'
+            )
+            
+            # Create or update subscription linking it to this transaction
+            if pending_sub:
+                pending_sub.transaction = transaction_obj
+                pending_sub.save(update_fields=['transaction'])
+            else:
+                from .club_models import ClubSubscription
+                ClubSubscription.objects.create(
+                    user=user,
+                    club=club,
+                    transaction=transaction_obj,
+                    status='pending'
+                )
+        
+        # 3. Call PesaPal to get payment URL
+        from payments.pesapal_service import PesaPalService
+        from django.conf import settings
+        pesapal = PesaPalService()
+        callback_url = getattr(settings, 'PESAPAL_CALLBACK_URL', 'http://localhost:5173/payment-success')
+        order_res = pesapal.submit_order(transaction_obj, callback_url)
+        
+        if order_res and 'redirect_url' in order_res:
+            transaction_obj.order_tracking_id = order_res['order_tracking_id']
+            transaction_obj.save(update_fields=['order_tracking_id'])
+            return Response({
+                "redirect_url": order_res['redirect_url'],
+                "merchant_reference": transaction_obj.merchant_reference,
+                "order_tracking_id": order_res['order_tracking_id']
+            })
+            
+        return Response({"error": "Failed to initiate payment with PesaPal"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 from rest_framework.views import APIView
 from .club_models import DiscussionMessage
@@ -186,4 +252,21 @@ class DiscussionMessageViewSet(viewsets.ModelViewSet):
             from django.contrib.auth import get_user_model
             User = get_user_model()
             user = User.objects.filter(is_superuser=True).first() or User.objects.first()
+        
+        club = serializer.validated_data.get('club')
+        if club:
+            from django.utils import timezone
+            from django.db.models import Q
+            is_sub = user.is_superuser or club.subscriptions.filter(
+                user=user,
+                status='active'
+            ).filter(
+                Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True)
+            ).exists()
+            
+            if not is_sub:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("You must pay and join this club to participate in the discussions.")
+
         serializer.save(user=user)
+

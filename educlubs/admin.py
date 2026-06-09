@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import Section, Level, Subject, Topic, Subtopic, Lesson, Assessment
-from .club_models import Club, Note, RoleModel, PracticalProject, DiscussionMessage
+from .club_models import Club, Note, RoleModel, PracticalProject, DiscussionMessage, ClubSubscription
 
 @admin.register(Section)
 class SectionAdmin(admin.ModelAdmin):
@@ -77,3 +77,11 @@ class DiscussionMessageAdmin(admin.ModelAdmin):
     list_filter = ('club',)
     search_fields = ('user', 'comment')
     ordering = ('-time',)
+
+
+@admin.register(ClubSubscription)
+class ClubSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ("user", "club", "status", "expires_at", "created_at")
+    list_filter = ("status", "club")
+    search_fields = ("user__username", "club__name")
+    ordering = ("-created_at",)
