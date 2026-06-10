@@ -26,7 +26,8 @@ class CoachListSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(url)
             return url
-        return None
+        from users.serializers import get_default_avatar_url
+        return get_default_avatar_url(obj.user.username)
 
 class CoachPromotionSerializer(serializers.ModelSerializer):
     class Meta:

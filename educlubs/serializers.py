@@ -144,7 +144,23 @@ class DiscussionMessageSerializer(serializers.ModelSerializer):
         fields = ['id', 'club', 'user', 'comment', 'message', 'time']
 
     def get_user(self, obj):
-        return obj.user.username if obj.user else "Anonymous"
+        if not obj.user:
+            return {"username": "Anonymous", "avatar": "", "role": "STUDENT"}
+        from users.serializers import get_default_avatar_url
+        avatar_url = ""
+        if hasattr(obj.user, 'profile') and obj.user.profile.avatar:
+            request = self.context.get('request')
+            if request:
+                avatar_url = request.build_absolute_uri(obj.user.profile.avatar.url)
+            else:
+                avatar_url = obj.user.profile.avatar.url
+        else:
+            avatar_url = get_default_avatar_url(obj.user.username)
+        return {
+            "username": obj.user.username,
+            "avatar": avatar_url,
+            "role": obj.user.role
+        }
 
     def validate(self, attrs):
         if 'comment' not in attrs and 'message' in attrs:
@@ -244,24 +260,7 @@ class ClubDetailSerializer(serializers.ModelSerializer):
             ret['roleModels'] = []
             ret['practical'] = None
             ret['discussion'] = []
-            
             if 'curriculum' in ret and isinstance(ret['curriculum'], list):
-                preview_curriculum = []
-                for topic in ret['curriculum']:
-                    preview_lessons = []
-                    for lesson in topic.get('lessons', []):
-                        preview_lessons.append({
-                            'title': lesson.get('title'),
-                            'type': lesson.get('type'),
-                            'duration': lesson.get('duration'),
-                            'content': None,
-                            'video_url': None,
-                            'assessments': []
-                        })
-                    preview_curriculum.append({
-                        'title': topic.get('title'),
-                        'lessons': preview_lessons
-                    })
-                ret['curriculum'] = preview_curriculum
+                ret['curriculum'] = [{'title': topic.get('title'), 'lessons': []} for topic in ret['curriculum']]
         return ret
 

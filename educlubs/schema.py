@@ -7,10 +7,46 @@ from .club_models import Club, Note, RoleModel, PracticalProject, DiscussionMess
 
 User = get_user_model()
 
+def get_authenticated_user(context):
+    if not context:
+        return None
+    user = getattr(context, 'user', None)
+    if user and not user.is_anonymous:
+        return user
+    
+    # Try parsing JWT token from Authorization header
+    auth_header = None
+    if hasattr(context, 'headers'):
+        auth_header = context.headers.get('Authorization')
+    if not auth_header and hasattr(context, 'META'):
+        auth_header = context.META.get('HTTP_AUTHORIZATION')
+        
+    if auth_header and auth_header.startswith('Bearer '):
+        try:
+            token = auth_header.split(' ')[1]
+            from rest_framework_simplejwt.authentication import JWTAuthentication
+            validated_token = JWTAuthentication().get_validated_token(token)
+            user = JWTAuthentication().get_user(validated_token)
+            return user
+        except Exception:
+            pass
+    return None
+
 class UserType(DjangoObjectType):
+    avatar = graphene.String()
+
     class Meta:
         model = User
         fields = ("id", "username", "email", "role")
+
+    def resolve_avatar(self, info):
+        if hasattr(self, 'profile') and self.profile.avatar:
+            request = info.context
+            if request:
+                return request.build_absolute_uri(self.profile.avatar.url)
+            return self.profile.avatar.url
+        from users.serializers import get_default_avatar_url
+        return get_default_avatar_url(self.username)
 
 class SectionType(DjangoObjectType):
     class Meta:
@@ -92,7 +128,7 @@ class ClubType(DjangoObjectType):
         fields = ("id", "name", "icon", "description", "level", "subject", "type", "popular", "notes", "practical", "price", "subscription_duration_days", "is_subscribed")
 
     def _get_is_subscribed(self, info):
-        user = info.context.user
+        user = get_authenticated_user(info.context)
         if not user or user.is_anonymous:
             return False
         from django.utils import timezone
@@ -123,13 +159,13 @@ class ClubType(DjangoObjectType):
             subject = self.level.subjects.first()
         if not subject:
             return []
-
+        
         data = []
         for topic in subject.topics.all().order_by('order'):
             lessons_data = []
-            for subtopic in topic.subtopics.all().order_by('order'):
-                for lesson in subtopic.lessons.all().order_by('order'):
-                    if is_sub:
+            if is_sub:
+                for subtopic in topic.subtopics.all().order_by('order'):
+                    for lesson in subtopic.lessons.all().order_by('order'):
                         assessments_data = []
                         for assessment in lesson.assessments.all():
                             questions_data = []
@@ -160,15 +196,6 @@ class ClubType(DjangoObjectType):
                             'content': lesson.content,
                             'video_url': lesson.video_url,
                             'assessments': assessments_data
-                        })
-                    else:
-                        lessons_data.append({
-                            'title': lesson.title,
-                            'type': 'Interactive Quiz' if lesson.assessments.exists() else ('Video Lesson' if lesson.video_url else 'Reading Material'),
-                            'duration': f"{lesson.duration_minutes}m" if lesson.duration_minutes else "15m",
-                            'content': None,
-                            'video_url': None,
-                            'assessments': []
                         })
             data.append({
                 'title': topic.title,
@@ -239,7 +266,7 @@ class PostDiscussionMessage(graphene.Mutation):
     message = graphene.Field(DiscussionMessageType)
 
     def mutate(self, info, club_id, comment):
-        user = info.context.user
+        user = get_authenticated_user(info.context)
         if not user or user.is_anonymous:
             # Replicate the REST fallback
             UserClass = get_user_model()
