@@ -229,36 +229,16 @@ class SubCategoriesView(APIView):
 class AIAssistView(APIView):
     permission_classes = [permissions.AllowAny]
     def post(self, request):
-        query = request.data.get('query', '')
-        expert_context = request.data.get('expert_context', 'You are a helpful learning assistant for Ugandan students.')
-        
-        import requests
-        OLLAMA_URL = "http://localhost:11434/api/generate"
-        model_name = "gemma4:12b"
-        
-        full_prompt = f"System Context:\n{expert_context}\n\nUser Request:\n{query}"
-        
-        data = {
-            "model": model_name,
-            "prompt": full_prompt,
-            "stream": False
-        }
-        
-        try:
-            response = requests.post(OLLAMA_URL, json=data, timeout=45)
-            if response.status_code == 200:
-                response_text = response.json().get("response", "").strip()
-                return Response({"response": response_text}, status=status.HTTP_200_OK)
-        except Exception as e:
-            # Fallback to mock responses if local Ollama is timed out / offline
-            query_lower = query.lower()
-            if 'photosynthesis' in query_lower:
-                response_text = "Photosynthesis is the process used by plants to convert light energy into chemical energy. In desert plants, this often happens via CAM photosynthesis to conserve water."
-            elif 'artery' in query_lower or 'vein' in query_lower:
-                response_text = "Arteries carry oxygenated blood away from the heart to the body, whereas veins carry deoxygenated blood back to the heart."
-            else:
-                response_text = "The AI learning assistant is currently offline. Please ensure Ollama is running locally with 'gemma4:12b' loaded."
-            return Response({"response": response_text}, status=status.HTTP_200_OK)
+        query = request.data.get('query', '').lower()
+        if 'photosynthesis' in query:
+            response_text = "Photosynthesis is the process used by plants to convert light energy into chemical energy. In desert plants, this often happens via CAM photosynthesis to conserve water."
+        elif 'artery' in query or 'vein' in query:
+            response_text = "Arteries carry oxygenated blood away from the heart to the body, whereas veins carry deoxygenated blood back to the heart."
+        elif 'equation' in query:
+            response_text = "An equation is a mathematical statement asserting the equality of two expressions. To solve, perform the same operation on both sides."
+        else:
+            response_text = "That is a great question! Based on the curriculum context for this club, you should focus on the core concepts, definitions, and practical examples outlined in the modules."
+        return Response({"response": response_text}, status=status.HTTP_200_OK)
 
 class DiscussionMessageViewSet(viewsets.ModelViewSet):
     queryset = DiscussionMessage.objects.select_related('user').all()

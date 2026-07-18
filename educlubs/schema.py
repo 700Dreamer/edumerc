@@ -127,8 +127,21 @@ class ClubType(DjangoObjectType):
         model = Club
         fields = ("id", "name", "icon", "description", "level", "subject", "type", "popular", "notes", "practical", "price", "subscription_duration_days", "is_subscribed")
 
+    def _get_is_subscribed(self, info):
+        user = get_authenticated_user(info.context)
+        if not user or user.is_anonymous:
+            return False
+        from django.utils import timezone
+        from django.db.models import Q
+        return user.is_superuser or self.subscriptions.filter(
+            user=user,
+            status='active'
+        ).filter(
+            Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True)
+        ).exists()
+
     def resolve_is_subscribed(self, info):
-        return True
+        return self._get_is_subscribed(info)
 
     def resolve_price(self, info):
         return self.price
@@ -137,7 +150,7 @@ class ClubType(DjangoObjectType):
         return self.subscription_duration_days
 
     def resolve_curriculum(self, info):
-        is_sub = True
+        is_sub = self._get_is_subscribed(info)
         
         subject = self.subject
         if not subject:
@@ -191,15 +204,23 @@ class ClubType(DjangoObjectType):
         return data
 
     def resolve_role_models(self, info):
+        if not self._get_is_subscribed(info):
+            return []
         return self.role_models.all()
 
     def resolve_discussion(self, info):
+        if not self._get_is_subscribed(info):
+            return []
         return self.discussion.all().order_by("-time")
 
     def resolve_notes(self, info):
+        if not self._get_is_subscribed(info):
+            return self.notes.none()
         return self.notes.all()
 
     def resolve_practical(self, info):
+        if not self._get_is_subscribed(info):
+            return None
         return getattr(self, 'practical', None)
 
 
