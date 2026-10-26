@@ -6,6 +6,6 @@ __pycache__/
 *.pyo
 *.pyd
 db.sqlite3
-Syllabus/
 .DS_Store
+
 
