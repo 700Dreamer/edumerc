@@ -163,40 +163,39 @@ class ClubType(DjangoObjectType):
         data = []
         for topic in subject.topics.all().order_by('order'):
             lessons_data = []
-            if is_sub:
-                for subtopic in topic.subtopics.all().order_by('order'):
-                    for lesson in subtopic.lessons.all().order_by('order'):
-                        assessments_data = []
-                        for assessment in lesson.assessments.all():
-                            questions_data = []
-                            for question in assessment.questions.all().order_by('order'):
-                                choices_data = []
-                                for choice in question.choices.all():
-                                    choices_data.append({
-                                        'id': choice.id,
-                                        'text': choice.text,
-                                        'is_correct': choice.is_correct
-                                    })
-                                questions_data.append({
-                                    'id': question.id,
-                                    'text': question.text,
-                                    'choices': choices_data
+            for subtopic in topic.subtopics.all().order_by('order'):
+                for lesson in subtopic.lessons.all().order_by('order'):
+                    assessments_data = []
+                    for assessment in lesson.assessments.all():
+                        questions_data = []
+                        for question in assessment.questions.all().order_by('order'):
+                            choices_data = []
+                            for choice in question.choices.all():
+                                choices_data.append({
+                                    'id': choice.id,
+                                    'text': choice.text,
+                                    'is_correct': choice.is_correct
                                 })
-                            assessments_data.append({
-                                    'id': assessment.id,
-                                    'title': assessment.title,
-                                    'description': assessment.description,
-                                    'questions': questions_data
+                            questions_data.append({
+                                'id': question.id,
+                                'text': question.text,
+                                'choices': choices_data
                             })
-                        
-                        lessons_data.append({
-                            'title': lesson.title,
-                            'type': 'Interactive Quiz' if lesson.assessments.exists() else ('Video Lesson' if lesson.video_url else 'Reading Material'),
-                            'duration': f"{lesson.duration_minutes}m" if lesson.duration_minutes else "15m",
-                            'content': lesson.content,
-                            'video_url': lesson.video_url,
-                            'assessments': assessments_data
+                        assessments_data.append({
+                                'id': assessment.id,
+                                'title': assessment.title,
+                                'description': assessment.description,
+                                'questions': questions_data
                         })
+                    
+                    lessons_data.append({
+                        'title': lesson.title,
+                        'type': 'Interactive Quiz' if lesson.assessments.exists() else ('Video Lesson' if lesson.video_url else 'Reading Material'),
+                        'duration': f"{lesson.duration_minutes}m" if lesson.duration_minutes else "15m",
+                        'content': lesson.content,
+                        'video_url': lesson.video_url,
+                        'assessments': assessments_data
+                    })
             data.append({
                 'title': topic.title,
                 'lessons': lessons_data
@@ -204,24 +203,17 @@ class ClubType(DjangoObjectType):
         return data
 
     def resolve_role_models(self, info):
-        if not self._get_is_subscribed(info):
-            return []
         return self.role_models.all()
 
     def resolve_discussion(self, info):
-        if not self._get_is_subscribed(info):
-            return []
         return self.discussion.all().order_by("-time")
 
     def resolve_notes(self, info):
-        if not self._get_is_subscribed(info):
-            return self.notes.none()
         return self.notes.all()
 
     def resolve_practical(self, info):
-        if not self._get_is_subscribed(info):
-            return None
         return getattr(self, 'practical', None)
+
 
 
 class Query(graphene.ObjectType):
