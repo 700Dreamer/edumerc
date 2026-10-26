@@ -113,6 +113,19 @@ class DiscussionMessageType(DjangoObjectType):
         model = DiscussionMessage
         fields = "__all__"
 
+def check_club_subscribed(club, info):
+    user = get_authenticated_user(info.context)
+    if not user or user.is_anonymous:
+        return False
+    from django.utils import timezone
+    from django.db.models import Q
+    return user.is_superuser or club.subscriptions.filter(
+        user=user,
+        status='active'
+    ).filter(
+        Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True)
+    ).exists()
+
 class ClubType(DjangoObjectType):
     curriculum = GenericScalar()
     role_models = graphene.List(RoleModelType)
@@ -127,21 +140,8 @@ class ClubType(DjangoObjectType):
         model = Club
         fields = ("id", "name", "icon", "description", "level", "subject", "type", "popular", "notes", "practical", "price", "subscription_duration_days", "is_subscribed")
 
-    def _get_is_subscribed(self, info):
-        user = get_authenticated_user(info.context)
-        if not user or user.is_anonymous:
-            return False
-        from django.utils import timezone
-        from django.db.models import Q
-        return user.is_superuser or self.subscriptions.filter(
-            user=user,
-            status='active'
-        ).filter(
-            Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True)
-        ).exists()
-
     def resolve_is_subscribed(self, info):
-        return self._get_is_subscribed(info)
+        return check_club_subscribed(self, info)
 
     def resolve_price(self, info):
         return self.price
@@ -150,8 +150,6 @@ class ClubType(DjangoObjectType):
         return self.subscription_duration_days
 
     def resolve_curriculum(self, info):
-        is_sub = self._get_is_subscribed(info)
-        
         subject = self.subject
         if not subject:
             subject = self.level.subjects.filter(name__icontains=self.name).first()
