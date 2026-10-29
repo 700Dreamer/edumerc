@@ -81,13 +81,14 @@ def detect_level_and_subject(path):
     
     # 1. Level Detection
     lvl = None
-    if "p.1 notes" in parent: lvl = "P.1"
-    elif "p.2 notes" in parent: lvl = "P.2"
-    elif "p.3 notes" in parent: lvl = "P.3"
-    elif "p.4 notes" in parent: lvl = "P.4"
-    elif "p.5 notes" in parent: lvl = "P.5"
-    elif "p.6 items" in parent: lvl = "P.6"
-    elif "p.7 items" in parent: lvl = "P.7"
+    rel_lower = rel.lower()
+    if "p.1 notes" in rel_lower or "p.1 items" in rel_lower or "primary 1" in rel_lower: lvl = "P.1"
+    elif "p.2 notes" in rel_lower or "p.2 items" in rel_lower or "primary 2" in rel_lower: lvl = "P.2"
+    elif "p.3 notes" in rel_lower or "p.3 items" in rel_lower or "primary 3" in rel_lower: lvl = "P.3"
+    elif "p.4 notes" in rel_lower or "p.4 items" in rel_lower or "primary 4" in rel_lower: lvl = "P.4"
+    elif "p.5 notes" in rel_lower or "p.5 items" in rel_lower or "primary 5" in rel_lower: lvl = "P.5"
+    elif "p.6 notes" in rel_lower or "p.6 items" in rel_lower or "primary 6" in rel_lower: lvl = "P.6"
+    elif "p.7 notes" in rel_lower or "p.7 items" in rel_lower or "primary 7" in rel_lower: lvl = "P.7"
     
     if not lvl:
         for p in range(1, 8):
@@ -108,14 +109,14 @@ def detect_level_and_subject(path):
                 lvl = f"S.{s}"
                 break
                 
-    if not lvl and "a-level" in rel.lower():
+    if not lvl and "a-level" in rel_lower:
         if "s.6" in filename or "s6" in filename: lvl = "S.6"
         elif "s.5" in filename or "s5" in filename: lvl = "S.5"
         else: lvl = "S.5"
 
     # 2. Subject Detection
     sub = None
-    fl = rel.lower()
+    fl = rel_lower
     if re.search(r"\b(math|mtc|mathematics|mathenatics|submath|m\.t\.c|numbers)\b", fl):
         sub = "Mathematics"
     elif re.search(r"\b(eng|english|grammar|phonics|reading|handwriting|composition|comprehension)\b", fl):
@@ -151,6 +152,18 @@ def detect_level_and_subject(path):
 
     return lvl, sub
 
+GARBAGE_TOPIC_REGEX = re.compile(
+    r'(^\d+\s+\d+.*Lcd)|'
+    r'(^[A-Z0-9]{8,})|'
+    r'(^[A-Z]\s+[A-Z]\s+[A-Z])|'
+    r'(^Exercise\s+[IVX\d]+)|'
+    r'(^Activity\s+\d+)|'
+    r'(^In This My Target)|'
+    r'(Lcd\s+\d)|'
+    r'(^\d+$)',
+    re.I
+)
+
 def parse_text_into_topics(paragraphs, default_subject):
     """Identifies clear, readable topic headers and their content."""
     topics = []
@@ -182,9 +195,18 @@ def parse_text_into_topics(paragraphs, default_subject):
                 header_text = p_clean.title()
                 
         if is_topic_header and header_text and len(header_text) >= 3:
+            # Check for garbage
+            if GARBAGE_TOPIC_REGEX.search(header_text):
+                continue
+            cleaned_title = header_text.title()
+            cleaned_title = re.sub(r'^(.*?)\s*-\s*\1\s*:\s*', r'\1: ', cleaned_title, flags=re.I)
+            cleaned_title = re.sub(r'^(.*?)\s*-\s*\1$', r'\1', cleaned_title, flags=re.I)
+            cleaned_title = re.sub(r'\bGodS\b', "God's", cleaned_title)
+            cleaned_title = re.sub(r'\s+', ' ', cleaned_title).strip()
+            
             if current_topic and current_content:
                 topics.append((current_topic, current_content))
-            current_topic = header_text.title()
+            current_topic = cleaned_title
             current_content = []
         else:
             if current_topic is None:

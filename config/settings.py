@@ -18,7 +18,10 @@ load_dotenv()
 
 from decouple import config
 GMAIL_TOKEN_JSON = config("GMAIL_TOKEN_JSON", default="")
-GOOGLE_OAUTH2_CLIENT_ID = config("GOOGLE_OAUTH2_CLIENT_ID", default="")
+GOOGLE_OAUTH2_CLIENT_ID = config(
+    "GOOGLE_OAUTH2_CLIENT_ID",
+    default="504245756855-t93hdnsqth9p9emg6ecqe7pesbc11qj5.apps.googleusercontent.com",
+)
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
